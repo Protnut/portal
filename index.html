@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>客戶專案管理平台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase SDKs (modular v9 compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .hidden { display: none; }
+    .card { border: 1px solid #ccc; padding: 10px; margin: 5px; }
+    button { margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <h2>客戶專案管理平台</h2>
+
+  <!-- 註冊 / 登入區 -->
+  <div id="auth-area">
+    <div id="signup-form">
+      <h3>註冊</h3>
+      <input type="email" id="su-email" placeholder="Email"><br>
+      <input type="password" id="su-pw" placeholder="密碼"><br>
+      <button id="btn-signup">註冊</button>
+    </div>
+    <div id="login-form">
+      <h3>登入</h3>
+      <input type="email" id="li-email" placeholder="Email"><br>
+      <input type="password" id="li-pw" placeholder="密碼"><br>
+      <button id="btn-login">登入</button>
+      <p id="auth-msg"></p>
+    </div>
+  </div>
+
+  <!-- 登入後區域 -->
+  <div id="user-area" class="hidden">
+    <p>登入中：<span id="user-email"></span> <span id="user-note"></span></p>
+    <button id="btn-logout">登出</button>
+
+    <hr>
+    <h3>我的專案</h3>
+    <button id="btn-new-project">新增案件</button>
+    <button id="btn-view-projects">查看案件</button>
+
+    <div id="new-project-area" class="hidden">
+      <h4>新增案件</h4>
+      <input type="text" id="proj-title" placeholder="案件名稱"><br>
+      <input type="file" id="proj-file"><br>
+      <button id="btn-create-project">建立案件</button>
+    </div>
+
+    <div id="projects-list" class="hidden">
+      <h4>案件列表</h4>
+      <div id="projects-container"></div>
+    </div>
+  </div>
+
+  <!-- 管理員區域 -->
+  <div id="admin-area" class="hidden">
+    <h3>待審核帳號</h3>
+    <div id="pending-list"></div>
+    <h3>全部案件</h3>
+    <div id="admin-projects"></div>
+  </div>
+
+  <script>
+    // TODO: 🔑 修改這裡 (換成 Firebase Console 產生的設定)
+    const firebaseConfig = {
+    apiKey: "AIzaSyCyL5D-TzMUL2LMWubzNiQCnBzQbJVcsZ0",
+    authDomain: "protnut711.firebaseapp.com",
+    projectId: "protnut711",
+    storageBucket: "protnut711.firebasestorage.app",
+    messagingSenderId: "891034366919",
+    appId: "1:891034366919:web:95e24c97db6abd976d5fe2",
+    measurementId: "G-KEZDX0E972"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
