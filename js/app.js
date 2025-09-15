@@ -300,33 +300,114 @@ async function loadMyProjects(){
   });
 }
 
+// 詳細任務定義（誰負責 / 顯示名稱）
+const WORKFLOW_DETAIL = {
+  uploaded: { label: "客戶上傳估價檔", role: "customer" },
+  dfm: { label: "公司進行 DFM", role: "admin" },
+  quoted: { label: "公司完成報價", role: "admin" },
+  po_received: { label: "客戶上傳 PO", role: "customer" },
+  prototyping: { label: "公司打樣中", role: "admin" },
+  delivery: { label: "產品與檢驗報告交付", role: "admin" }
+};
+
+// ================ 顯示專案（含流程表） ===================
 window.viewProject = async function(projectId){
-  const doc = await db.collection('projects').doc(projectId).get();
-  if(!doc.exists){ alert('找不到案件'); return; }
-  const d = doc.data();
+  const snap = await db.collection('projects').doc(projectId).get();
+  if(!snap.exists){ alert('找不到案件'); return; }
+  const d = snap.data();
+
   let html = `<h4>${d.title} — ${WORKFLOW_LABELS[d.status] || d.status}</h4>`;
-  html += '<h5>歷史</h5><ul>';
+
+  // 流程表
+  html += `<table class="table table-dark table-bordered">
+    <thead><tr>
+      <th>任務</th><th>負責</th><th>狀態</th><th>附件</th><th>操作</th>
+    </tr></thead><tbody>`;
+
+  WORKFLOW.forEach(s=>{
+    const wf = WORKFLOW_DETAIL[s];
+    const idx = WORKFLOW.indexOf(s);
+    const currIdx = WORKFLOW.indexOf(d.status);
+    const done = idx < currIdx;
+    const current = idx === currIdx;
+
+    // 抓取該任務相關附件
+    const files = (d.attachments||[])
+      .filter(a => a.type === s 
+                || (s==='uploaded' && a.type==='estimate-file')
+                || (s==='quoted' && a.type==='quotation')
+                || (s==='po_received' && a.type==='po')
+                || (s==='delivery' && (a.type==='inspection-report' || a.type==='delivery')))
+      .map(a=> `<a target="_blank" href="${a.downloadUrl}">${a.name}</a>` )
+      .join('<br>');
+
+    // 操作按鈕：只有當前任務、且是該角色負責人
+    let action = '';
+    if(current){
+      if(wf.role==='customer' && auth.currentUser.uid===d.owner){
+        // 客戶當前任務
+        action = `<button class="btn btn-sm btn-success" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
+      }
+      if(wf.role==='admin' && isAdminEmail(auth.currentUser.email)){
+        // 管理員當前任務
+        action = `<button class="btn btn-sm btn-warning" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
+      }
+    }
+
+    html += `<tr>
+      <td>${wf.label}</td>
+      <td>${wf.role==='customer'?'客戶':'公司'}</td>
+      <td>${done? '✅ 完成' : current? '⏳ 進行中' : '❌ 未開始'}</td>
+      <td>${files || '-'}</td>
+      <td>${action}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+
+  // 歷史紀錄
+  html += '<h5>歷史紀錄</h5><ul>';
   (d.history||[]).forEach(h=>{
     const time = h.ts ? new Date(h.ts).toLocaleString() : '';
     html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${h.by} / ${h.note||''} / ${time}</li>`;
   });
   html += '</ul>';
-  html += '<h5>附件</h5><ul>';
-  (d.attachments||[]).forEach(a=>{
-    const time = a.uploadedAt ? new Date(a.uploadedAt).toLocaleString() : '';
-    html += `<li>${a.name} - <a target="_blank" href="${a.downloadUrl}">下載</a> (${a.type}) / ${time}</li>`;
-  });
-  html += '</ul>';
-
-  if(auth.currentUser.uid === d.owner){
-    if(d.status === 'quoted'){
-      html += `<h5>上傳 PO</h5>
-        <input type="file" id="po-file-${projectId}"><br><button onclick="uploadPO('${projectId}')">上傳 PO</button>`;
-    }
-  }
 
   document.getElementById('projects-container').innerHTML = html;
   show(projectsList);
+}
+
+// ================ 任務完成 ===================
+window.completeTask = async function(pid, status){
+  const docRef = db.collection('projects').doc(pid);
+  const snap = await docRef.get();
+  if(!snap.exists) return;
+  const d = snap.data();
+  const next = nextStatus(status);
+
+  await docRef.update({
+    status: next,
+    history: firebase.firestore.FieldValue.arrayUnion({
+      status: next,
+      by: auth.currentUser.email,
+      ts: Date.now(),
+      note: '任務完成，自動進入下一階段'
+    }),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  await db.collection('notifications').add({
+    type: 'task_completed',
+    projectId: pid,
+    completed: status,
+    next: next,
+    by: auth.currentUser.email,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    status: 'unread'
+  });
+
+  alert(`已完成「${WORKFLOW_LABELS[status]}」，進入「${WORKFLOW_LABELS[next]}」`);
+  viewProject(pid);
 };
 
 window.uploadPO = async function(projectId){
