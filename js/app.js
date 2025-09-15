@@ -5,7 +5,7 @@ const storage = firebase.storage();
 
 // ---------- config (請按需修改 admin email) ----------
 const ADMIN_EMAILS = ["rob@protnut.com"]; 
-const FREE_EMAIL_PROVIDERS = ["gmail.com","yahoo.com","hotmail.com","outlook.com","protonmail.com"];
+const FREE_EMAIL_PROVIDERS = ["gmail.com","yahoo.com","hotmail.com","outlook.com","protonmail.com","yahoo.com.tw"];
 const ALLOWED_TLDS = [".com", ".com.tw", ".net"];
 // --------------------------------------------------------
 

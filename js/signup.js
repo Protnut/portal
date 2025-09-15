@@ -5,7 +5,7 @@ const btnSignup = document.getElementById('btn-signup');
 
 // 禁止的免費信箱清單
 const FREE_EMAIL_PROVIDERS = [
-  "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "protonmail.com"
+  "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "protonmail.com", "yahoo.com.tw"
 ];
 
 // 允許的公司信箱結尾
