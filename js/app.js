@@ -1,4 +1,4 @@
-// /js/app.js - updated
+// /js/app.js - fixed version_0915_1
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
@@ -20,7 +20,7 @@ const WORKFLOW_LABELS = {
   delivery: "產品與檢驗報告交付"
 };
 
-// UI 元件（保留你原先 id）
+// UI 元件
 const suEmail = document.getElementById('su-email');
 const suPw = document.getElementById('su-pw');
 const btnSignup = document.getElementById('btn-signup');
@@ -48,7 +48,7 @@ const projectsContainer = document.getElementById('projects-container');
 const adminArea = document.getElementById('admin-area');
 const pendingList = document.getElementById('pending-list');
 const adminProjects = document.getElementById('admin-projects');
-const notificationsContainer = document.getElementById('notifications'); // optional
+const notificationsContainer = document.getElementById('notifications');
 
 // helpers
 function show(el){ if(el) el.classList.remove('hidden'); }
@@ -83,25 +83,25 @@ if(btnSignup){
     if(!email || !pw){ alert('請填 email 與密碼'); return; }
 
     if(isFreeEmail(email)){
-      alert('免費信箱（如 Gmail / Yahoo / Outlook 等）不得線上註冊。如需使用請聯絡管理員由管理員新增帳號。');
+      alert('免費信箱不得註冊');
       return;
     }
     if(!isAllowedTld(email)){
-      alert(`僅允許 ${ALLOWED_TLDS.join(', ')} 公司信箱線上註冊。其他網域請聯絡管理員由管理員手動新增。`);
+      alert(`僅允許 ${ALLOWED_TLDS.join(', ')} 公司信箱`);
       return;
     }
 
     try{
       const cred = await auth.createUserWithEmailAndPassword(email, pw);
       await cred.user.sendEmailVerification();
-      // 建立 user doc（approved=false）
+
       await db.collection('users').doc(cred.user.uid).set({
         email: email,
         approved: false,
         role: 'customer',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      // 通知管理員（Cloud Function 可監聽此 collection 實際寄信）
+
       await db.collection('notifications').add({
         type: 'new_signup',
         email: email,
@@ -109,7 +109,8 @@ if(btnSignup){
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'unread'
       });
-      alert('註冊成功，已發送驗證信。請完成驗證並等待管理員審核。管理員會收到通知。');
+
+      alert('註冊成功，請驗證 Email 並等待管理員審核');
       suEmail.value = ''; suPw.value = '';
     }catch(e){
       alert('註冊失敗：' + e.message);
@@ -117,7 +118,7 @@ if(btnSignup){
   };
 }
 
-// ================ Login / Logout ===================
+// ================ Login ===================
 if(btnLogin){
   btnLogin.onclick = async () => {
     const email = (liEmail.value || '').trim();
@@ -131,13 +132,13 @@ if(btnLogin){
       }
       const ud = await db.collection('users').doc(user.uid).get();
       if(!ud.exists){
-        authMsg.innerText = '帳號尚未建立資料，若為管理員請先在後台新增，或聯絡管理員';
+        authMsg.innerText = '帳號資料不存在';
         await auth.signOut();
         return;
       }
       const udata = ud.data();
       if(!udata.approved){
-        authMsg.innerText = '帳號尚未審核通過，請等待管理員';
+        authMsg.innerText = '帳號尚未審核通過';
         await auth.signOut();
         return;
       }
@@ -163,36 +164,28 @@ auth.onAuthStateChanged(async user => {
   const udRef = db.collection('users').doc(user.uid);
   const udSnap = await udRef.get();
   if(!udSnap.exists){
-    if(isAllowedTld(user.email) && !isFreeEmail(user.email)){
-      // 建立 user doc（approved=false），再 sign out 讓管理員審核
-      await udRef.set({
-        email: user.email,
-        approved: false,
-        role: 'customer',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      await db.collection('notifications').add({
-        type: 'new_signup',
-        email: user.email,
-        uid: user.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        status: 'unread'
-      });
-      alert('已建立帳號資料，請等待管理員審核。');
-      await auth.signOut();
-      location.reload();
-      return;
-    } else {
-      alert('此帳號無法自動建立資料，請聯絡管理員。');
-      await auth.signOut();
-      location.reload();
-      return;
-    }
+    await udRef.set({
+      email: user.email,
+      approved: false,
+      role: 'customer',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('notifications').add({
+      type: 'new_signup',
+      email: user.email,
+      uid: user.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      status: 'unread'
+    });
+    alert('帳號資料已建立，請等待管理員審核');
+    await auth.signOut();
+    location.reload();
+    return;
   }
 
   const udata = udSnap.data();
   if(!udata.approved){
-    alert('您的帳號尚未審核通過 (請稍候或聯絡管理員)。');
+    alert('您的帳號尚未審核通過');
     await auth.signOut();
     location.reload();
     return;
@@ -218,37 +211,36 @@ async function setupUIForUser(user, udata){
     hide(adminArea);
   }
 
-  // client UI controls
   if(btnNewProject) btnNewProject.onclick = ()=> show(newProjectArea);
   if(btnViewProjects) btnViewProjects.onclick = ()=> { loadMyProjects(); show(projectsList); };
 
   if(btnCreateProject) btnCreateProject.onclick = async () => {
     const title = (projTitle.value || '').trim();
     const file = projFile.files[0];
-    if(!title || !file){ alert('請填案件名稱並選擇檔案'); return; }
+    if(!title || !file){ alert('請填案件名稱並選檔案'); return; }
     btnCreateProject.disabled = true;
     try{
       const pRef = await db.collection('projects').add({
         owner: user.uid,
         title: title,
-        status: WORKFLOW[0], // 'uploaded'
+        status: WORKFLOW[0],
         attachments: [],
         history: [{
           status: WORKFLOW[0],
           by: user.email,
-          ts: firebase.firestore.FieldValue.serverTimestamp(),
+          ts: Date.now(), // ✅ 改掉
           note: '客戶上傳估價檔'
         }],
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+
       const projectId = pRef.id;
       const uid = user.uid;
       const filePath = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${file.name}`;
       const storageRef = storage.ref().child(filePath);
       const uploadTask = storageRef.put(file);
 
-      // 上傳進度（UX）
       uploadTask.on('state_changed', snapshot => {
         const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         console.log('Upload is ' + pct.toFixed(1) + '% done');
@@ -261,20 +253,18 @@ async function setupUIForUser(user, udata){
             downloadUrl: url,
             type: 'estimate-file',
             uploadedBy: user.email,
-            uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+            uploadedAt: Date.now() // ✅ 改掉
           }),
-          // advance status to next (auto push to DFM)
           status: nextStatus(WORKFLOW[0]),
           history: firebase.firestore.FieldValue.arrayUnion({
             status: nextStatus(WORKFLOW[0]),
             by: 'system',
-            ts: firebase.firestore.FieldValue.serverTimestamp(),
+            ts: Date.now(), // ✅ 改掉
             note: '系統自動：上傳估價後進入下一階段'
           }),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // notify admins of new project
         await db.collection('notifications').add({
           type: 'new_project',
           projectId: projectId,
@@ -283,7 +273,7 @@ async function setupUIForUser(user, udata){
           status: 'unread'
         });
 
-        alert('估價案件建立成功，狀態已移至下一階段（DFM）');
+        alert('專案建立成功');
         projTitle.value=''; projFile.value='';
         loadMyProjects();
       });
@@ -317,19 +307,20 @@ window.viewProject = async function(projectId){
   let html = `<h4>${d.title} — ${WORKFLOW_LABELS[d.status] || d.status}</h4>`;
   html += '<h5>歷史</h5><ul>';
   (d.history||[]).forEach(h=>{
-    const time = h.ts ? new Date(h.ts.seconds*1000).toLocaleString() : '';
+    const time = h.ts ? new Date(h.ts).toLocaleString() : '';
     html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${h.by} / ${h.note||''} / ${time}</li>`;
   });
   html += '</ul>';
   html += '<h5>附件</h5><ul>';
   (d.attachments||[]).forEach(a=>{
-    html += `<li>${a.name} - <a target="_blank" href="${a.downloadUrl}">下載</a> (${a.type})</li>`;
+    const time = a.uploadedAt ? new Date(a.uploadedAt).toLocaleString() : '';
+    html += `<li>${a.name} - <a target="_blank" href="${a.downloadUrl}">下載</a> (${a.type}) / ${time}</li>`;
   });
   html += '</ul>';
 
   if(auth.currentUser.uid === d.owner){
     if(d.status === 'quoted'){
-      html += `<h5>上傳 PO 單</h5>
+      html += `<h5>上傳 PO</h5>
         <input type="file" id="po-file-${projectId}"><br><button onclick="uploadPO('${projectId}')">上傳 PO</button>`;
     }
   }
@@ -340,7 +331,7 @@ window.viewProject = async function(projectId){
 
 window.uploadPO = async function(projectId){
   const f = document.getElementById(`po-file-${projectId}`).files[0];
-  if(!f) { alert('請選擇檔案'); return; }
+  if(!f) { alert('請選檔案'); return; }
   try{
     const uid = auth.currentUser.uid;
     const path = `user_uploads/${uid}/projects/${projectId}/po_${Date.now()}_${f.name}`;
@@ -354,13 +345,13 @@ window.uploadPO = async function(projectId){
         downloadUrl: url,
         type: 'po',
         uploadedBy: auth.currentUser.email,
-        uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+        uploadedAt: Date.now() // ✅ 改掉
       }),
       status: nextStatus('po_received'),
       history: firebase.firestore.FieldValue.arrayUnion({
         status: 'po_received',
         by: auth.currentUser.email,
-        ts: firebase.firestore.FieldValue.serverTimestamp(),
+        ts: Date.now(), // ✅ 改掉
         note: '客戶上傳 PO'
       }),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -372,7 +363,7 @@ window.uploadPO = async function(projectId){
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       status: 'unread'
     });
-    alert('PO 已上傳，狀態已自動更新為打樣（prototyping）');
+    alert('PO 已上傳');
     loadMyProjects();
   }catch(e){ alert('PO 上傳失敗: '+e.message); }
 };
@@ -392,7 +383,7 @@ async function loadPendingUsers(){
 }
 window.approveUser = async function(uid){
   if(!confirm('確定要核准嗎？')) return;
-  await db.collection('users').doc(uid).update({ approved: true, role: 'customer', approvedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  await db.collection('users').doc(uid).update({ approved: true, role: 'customer', approvedAt: Date.now() }); // ✅ 改掉
   await db.collection('notifications').add({
     type: 'approved_user',
     uid: uid,
@@ -451,14 +442,13 @@ window.adminUpload = async function(pid){
   await storageRef.put(f);
   const url = await storageRef.getDownloadURL();
 
-  // 準備 update 內容，不要用 FieldValue.delete() 的方式去設定 status
   const updateObj = {
     attachments: firebase.firestore.FieldValue.arrayUnion({
       name: f.name, storagePath: path, downloadUrl: url, type: type,
-      uploadedBy: auth.currentUser.email, uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+      uploadedBy: auth.currentUser.email, uploadedAt: Date.now() // ✅ 改掉
     }),
     history: firebase.firestore.FieldValue.arrayUnion({
-      status: type, by: auth.currentUser.email, ts: firebase.firestore.FieldValue.serverTimestamp(), note: '管理員上傳'
+      status: type, by: auth.currentUser.email, ts: Date.now(), note: '管理員上傳' // ✅ 改掉
     }),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -482,7 +472,7 @@ window.adminSetStatus = async function(pid){
   await db.collection('projects').doc(pid).update({
     status: s,
     history: firebase.firestore.FieldValue.arrayUnion({
-      status: s, by: auth.currentUser.email, ts: firebase.firestore.FieldValue.serverTimestamp(), note: '管理員手動設置'
+      status: s, by: auth.currentUser.email, ts: Date.now(), note: '管理員手動設置' // ✅ 改掉
     }),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
@@ -490,7 +480,7 @@ window.adminSetStatus = async function(pid){
   loadAllProjectsForAdmin();
 };
 
-// ================ Notifications (簡單) ===================
+// ================ Notifications ===================
 async function loadNotificationsForAdmin(){
   if(!notificationsContainer) return;
   const q = await db.collection('notifications').where('status','==','unread').orderBy('createdAt','desc').get();
@@ -503,6 +493,7 @@ async function loadNotificationsForAdmin(){
   notificationsContainer.innerHTML = html;
 }
 window.markNotificationRead = async function(nid){
-  await db.collection('notifications').doc(nid).update({ status: 'read', readAt: firebase.firestore.FieldValue.serverTimestamp() });
+  await db.collection('notifications').doc(nid).update({ status: 'read', readAt: Date.now() }); // ✅ 改掉
   loadNotificationsForAdmin();
 };
+
