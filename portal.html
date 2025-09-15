@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protnut OEM Portal</title>
+
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <!-- Custom Portal Style -->
+  <style>
+    body {
+      background-color: #1d1f21;
+      color: #eee;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .container {
+      max-width: 960px;
+      padding: 40px 15px;
+    }
+    h2, h3, h4, h5 {
+      color: #f5f5f5;
+    }
+    .card {
+      background: #2b2f33;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    }
+    .btn-primary, .btn-success {
+      border-radius: 6px;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 class="text-center mb-4">🔒 Protnut OEM Portal</h2>
+
+    <!-- ===== Auth Area ===== -->
+    <div id="auth-area">
+      <!-- Signup -->
+      <div id="signup-form" class="card">
+        <h4>註冊帳號</h4>
+        <input type="email" id="su-email" class="form-control mb-2" placeholder="公司信箱 (ex: user@company.com)">
+        <input type="password" id="su-pw" class="form-control mb-2" placeholder="密碼">
+        <button id="btn-signup" class="btn btn-success">申請註冊</button>
+        <p class="mt-2" style="font-size: 0.9em; color:#aaa;">
+          僅允許公司信箱 (.com / .com.tw / .net)<br>
+          禁止 Gmail / Yahoo / Outlook 等免費信箱
+        </p>
+      </div>
+
+      <!-- Login -->
+      <div id="login-form" class="card">
+        <h4>登入帳號</h4>
+        <input type="email" id="li-email" class="form-control mb-2" placeholder="Email">
+        <input type="password" id="li-pw" class="form-control mb-2" placeholder="Password">
+        <button id="btn-login" class="btn btn-primary">登入</button>
+        <p id="auth-msg" style="color:#f88; margin-top:8px;"></p>
+      </div>
+    </div>
+
+    <!-- ===== User Area ===== -->
+    <div id="user-area" class="hidden">
+      <div class="card">
+        <h4>歡迎, <span id="user-email"></span><span id="user-note"></span></h4>
+        <button id="btn-logout" class="btn btn-secondary btn-sm float-right">登出</button>
+      </div>
+
+      <!-- 客戶功能 -->
+      <div id="client-area">
+        <button id="btn-new-project" class="btn btn-success mb-2">➕ 建立新專案</button>
+        <button id="btn-view-projects" class="btn btn-primary mb-2">📂 我的專案</button>
+
+        <!-- 建立新專案 -->
+        <div id="new-project-area" class="card hidden">
+          <h5>建立新專案</h5>
+          <input type="text" id="proj-title" class="form-control mb-2" placeholder="專案名稱">
+          <input type="file" id="proj-file" class="form-control mb-2">
+          <button id="btn-create-project" class="btn btn-success">送出專案</button>
+        </div>
+
+        <!-- 我的專案列表 -->
+        <div id="projects-list" class="card hidden">
+          <h5>我的專案</h5>
+          <div id="projects-container"></div>
+        </div>
+      </div>
+
+      <!-- 管理員功能 -->
+      <div id="admin-area" class="hidden">
+        <h4>管理員控制台</h4>
+
+        <!-- 待審核用戶 -->
+        <div class="card">
+          <h5>待審核帳號</h5>
+          <div id="pending-list"></div>
+        </div>
+
+        <!-- 所有專案 -->
+        <div class="card">
+          <h5>所有專案</h5>
+          <div id="admin-projects"></div>
+        </div>
+
+        <!-- 通知 -->
+        <div class="card">
+          <h5>最新通知</h5>
+          <div id="notifications"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== JS ===== -->
+  <script src="js/jquery-3.2.1.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+  <script>
+    // TODO: 換成你的 Firebase 專案設定
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "protnut711.firebaseapp.com",
+      projectId: "protnut711",
+      storageBucket: "protnut711.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
+  <!-- Portal App Logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>
