@@ -151,48 +151,6 @@
     <!-- ================ contact section start ================= -->
     <section class="contact-section">
             <div class="container">
-                <div class="d-none d-sm-block mb-5 pb-4">
-                    <div id="map" style="height: 480px; position: relative; overflow: hidden;"> </div>
-                    <script>
-                        function initMap() {
-                            var uluru = {
-                                lat: -25.363,
-                                lng: 131.044
-                            };
-                            var grayStyles = [{
-                                    featureType: "all",
-                                    stylers: [{
-                                            saturation: -90
-                                        },
-                                        {
-                                            lightness: 50
-                                        }
-                                    ]
-                                },
-                                {
-                                    elementType: 'labels.text.fill',
-                                    stylers: [{
-                                        color: '#ccdee9'
-                                    }]
-                                }
-                            ];
-                            var map = new google.maps.Map(document.getElementById('map'), {
-                                center: {
-                                    lat: -31.197,
-                                    lng: 150.744
-                                },
-                                zoom: 9,
-                                styles: grayStyles,
-                                scrollwheel: false
-                            });
-                        }
-                    </script>
-                    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDpfS1oRGreGSBU5HHjMmQ3o5NLw7VdJ6I&amp;callback=initMap">
-                    </script>
-    
-                </div>
-    
-    
                 <div class="row">
                     <div class="col-12">
                         <h2 class="contact-title">Get in Touch</h2>
@@ -250,6 +208,14 @@
                         </div>
                     </div>
                 </div>
+                
+                <div id="contact-signup" class="card" style="padding:15px; margin-top:20px;">
+                  <h3>註冊成為合作客戶（申請 Portal 帳號）</h3>
+                  <input type="email" id="su-email" placeholder="Company Email (ex: you@yourcompany.com)"><br>
+                  <input type="password" id="su-pw" placeholder="密碼"><br>
+                  <button id="btn-signup">申請註冊</button>
+                  <p style="font-size:12px;color:#666">※ 只接受公司信箱 (.com / .com.tw / .net)。免費信箱需由管理者手動加入。</p>
+                </div>  
             </div>
         </section>
     <!-- ================ contact section end ================= -->
@@ -437,6 +403,28 @@ Copyright &copy;<script>document.write(new Date().getFullYear());</script> All r
     
             });
         </script>
+            <!-- Firebase SDKs -->
+        <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+        <script>
+          // 與 portal.html 相同的 firebaseConfig（務必保持一致）
+          const firebaseConfig = {
+              apiKey: "AIzaSyCyL5D-TzMUL2LMWubzNiQCnBzQbJVcsZ0",
+              authDomain: "protnut711.firebaseapp.com",
+              projectId: "protnut711",
+              storageBucket: "protnut711.firebasestorage.app",
+              messagingSenderId: "891034366919",
+              appId: "1:891034366919:web:95e24c97db6abd976d5fe2",
+              measurementId: "G-KEZDX0E972"
+            };
+          firebase.initializeApp(firebaseConfig);
+        </script>
+
+        <!-- 載入一個小的 signup.js（以下示範） -->
+        <script src="/js/signup.js"></script>
     </body>
     
     </html>
