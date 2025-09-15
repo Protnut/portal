@@ -1,9 +1,9 @@
-// /js/app.js - fixed version_0915_1
+// /js/app.js - fixed version_0915_2
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 
-// ---------- config (請按需修改 admin email) ----------
+// ---------- config ----------
 const ADMIN_EMAILS = ["rob@protnut.com"]; 
 const FREE_EMAIL_PROVIDERS = ["gmail.com","yahoo.com","hotmail.com","outlook.com","protonmail.com","yahoo.com.tw"];
 const ALLOWED_TLDS = [".com", ".com.tw", ".net"];
@@ -228,7 +228,7 @@ async function setupUIForUser(user, udata){
         history: [{
           status: WORKFLOW[0],
           by: user.email,
-          ts: Date.now(), // ✅ 改掉
+          ts: Date.now(),
           note: '客戶上傳估價檔'
         }],
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -253,13 +253,13 @@ async function setupUIForUser(user, udata){
             downloadUrl: url,
             type: 'estimate-file',
             uploadedBy: user.email,
-            uploadedAt: Date.now() // ✅ 改掉
+            uploadedAt: Date.now()
           }),
           status: nextStatus(WORKFLOW[0]),
           history: firebase.firestore.FieldValue.arrayUnion({
             status: nextStatus(WORKFLOW[0]),
             by: 'system',
-            ts: Date.now(), // ✅ 改掉
+            ts: Date.now(),
             note: '系統自動：上傳估價後進入下一階段'
           }),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -331,7 +331,7 @@ window.viewProject = async function(projectId){
 
 window.uploadPO = async function(projectId){
   const f = document.getElementById(`po-file-${projectId}`).files[0];
-  if(!f) { alert('請選檔案'); return; }
+  if(!f) { alert('請選擇檔案'); return; }
   try{
     const uid = auth.currentUser.uid;
     const path = `user_uploads/${uid}/projects/${projectId}/po_${Date.now()}_${f.name}`;
@@ -345,13 +345,13 @@ window.uploadPO = async function(projectId){
         downloadUrl: url,
         type: 'po',
         uploadedBy: auth.currentUser.email,
-        uploadedAt: Date.now() // ✅ 改掉
+        uploadedAt: Date.now()
       }),
       status: nextStatus('po_received'),
       history: firebase.firestore.FieldValue.arrayUnion({
         status: 'po_received',
         by: auth.currentUser.email,
-        ts: Date.now(), // ✅ 改掉
+        ts: Date.now(),
         note: '客戶上傳 PO'
       }),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -383,7 +383,7 @@ async function loadPendingUsers(){
 }
 window.approveUser = async function(uid){
   if(!confirm('確定要核准嗎？')) return;
-  await db.collection('users').doc(uid).update({ approved: true, role: 'customer', approvedAt: Date.now() }); // ✅ 改掉
+  await db.collection('users').doc(uid).update({ approved: true, role: 'customer', approvedAt: Date.now() });
   await db.collection('notifications').add({
     type: 'approved_user',
     uid: uid,
@@ -445,10 +445,10 @@ window.adminUpload = async function(pid){
   const updateObj = {
     attachments: firebase.firestore.FieldValue.arrayUnion({
       name: f.name, storagePath: path, downloadUrl: url, type: type,
-      uploadedBy: auth.currentUser.email, uploadedAt: Date.now() // ✅ 改掉
+      uploadedBy: auth.currentUser.email, uploadedAt: Date.now()
     }),
     history: firebase.firestore.FieldValue.arrayUnion({
-      status: type, by: auth.currentUser.email, ts: Date.now(), note: '管理員上傳' // ✅ 改掉
+      status: type, by: auth.currentUser.email, ts: Date.now(), note: '管理員上傳'
     }),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -472,7 +472,7 @@ window.adminSetStatus = async function(pid){
   await db.collection('projects').doc(pid).update({
     status: s,
     history: firebase.firestore.FieldValue.arrayUnion({
-      status: s, by: auth.currentUser.email, ts: Date.now(), note: '管理員手動設置' // ✅ 改掉
+      status: s, by: auth.currentUser.email, ts: Date.now(), note: '管理員手動設置'
     }),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
@@ -493,7 +493,8 @@ async function loadNotificationsForAdmin(){
   notificationsContainer.innerHTML = html;
 }
 window.markNotificationRead = async function(nid){
-  await db.collection('notifications').doc(nid).update({ status: 'read', readAt: Date.now() }); // ✅ 改掉
+  await db.collection('notifications').doc(nid).update({ status: 'read', readAt: Date.now() });
   loadNotificationsForAdmin();
 };
+
 
