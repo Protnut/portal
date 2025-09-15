@@ -75,6 +75,18 @@ function nextStatus(curr){
   return WORKFLOW[idx + 1];
 }
 
+// 新增: 驗證檔案（禁止.exe）
+window.validateFiles = function(input) {
+  const files = input.files;
+  for (let file of files) {
+    if (file.name.endsWith('.exe')) {
+      alert('禁止上傳.exe檔案');
+      input.value = ''; // 清空輸入
+      return;
+    }
+  }
+};
+
 // ================ Signup ===================
 if(btnSignup){
   btnSignup.onclick = async () => {
@@ -214,90 +226,95 @@ async function setupUIForUser(user, udata){
   if(btnNewProject) btnNewProject.onclick = ()=> show(newProjectArea);
   if(btnViewProjects) btnViewProjects.onclick = ()=> { loadMyProjects(); show(projectsList); };
 
-  if(btnCreateProject) btnCreateProject.onclick = async () => {
-    const title = (projTitle.value || '').trim();
-    const file = projFile.files[0];
-    if(!title || !file){ alert('請填案件名稱並選檔案'); return; }
-    btnCreateProject.disabled = true;
-    try{
-      const pRef = await db.collection('projects').add({
-        owner: user.uid,
-        title: title,
-        status: WORKFLOW[0],
-        attachments: [],
-        history: [{
-          status: WORKFLOW[0],
-          by: user.email,
-          ts: Date.now(),
-          note: '客戶上傳估價檔'
-        }],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+    if (btnCreateProject) {
+      btnCreateProject.onclick = async () => {
+        const title = (projTitle.value || '').trim();
+        const files = document.getElementById('proj-files').files;
+        if (!title || files.length === 0) { alert('請填名稱並選檔案'); return; }
+        btnCreateProject.disabled = true;
+        try {
+          const pRef = await db.collection('projects').add({
+            owner: user.uid,
+            title: title,
+            status: WORKFLOW[0],
+            attachments: [],
+            history: [{ status: WORKFLOW[0], by: user.email, ts: Date.now(), note: '客戶上傳估價檔' }],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          const projectId = pRef.id;
+          const uid = user.uid;
+          let attachments = [];
 
-      const projectId = pRef.id;
-      const uid = user.uid;
-      const filePath = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${file.name}`;
-      const storageRef = storage.ref().child(filePath);
-      const uploadTask = storageRef.put(file);
+          // 多檔上傳迴圈
+          for (let file of files) {
+            const filePath = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${file.name}`;
+            const storageRef = storage.ref().child(filePath);
+            await storageRef.put(file); // 上傳檔案
+            const url = await storageRef.getDownloadURL(); // 取下載URL
+            attachments.push({
+              name: file.name,
+              storagePath: filePath,
+              downloadUrl: url,
+              type: 'estimate-file',
+              uploadedBy: user.email,
+              uploadedAt: Date.now()
+            });
+          }
 
-      uploadTask.on('state_changed', snapshot => {
-        const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log('Upload is ' + pct.toFixed(1) + '% done');
-      }, err => { throw err; }, async ()=>{
-        const url = await storageRef.getDownloadURL();
-        await pRef.update({
-          attachments: firebase.firestore.FieldValue.arrayUnion({
-            name: file.name,
-            storagePath: filePath,
-            downloadUrl: url,
-            type: 'estimate-file',
-            uploadedBy: user.email,
-            uploadedAt: Date.now()
-          }),
-          status: nextStatus(WORKFLOW[0]),
-          history: firebase.firestore.FieldValue.arrayUnion({
+          // 更新專案資料
+          await pRef.update({
+            attachments: attachments,
             status: nextStatus(WORKFLOW[0]),
-            by: 'system',
-            ts: Date.now(),
-            note: '系統自動：上傳估價後進入下一階段'
-          }),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+            history: firebase.firestore.FieldValue.arrayUnion({
+              status: nextStatus(WORKFLOW[0]), by: 'system', ts: Date.now(), note: '系統自動：上傳估價後進入下一階段'
+            }),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
 
-        await db.collection('notifications').add({
-          type: 'new_project',
-          projectId: projectId,
-          ownerEmail: user.email,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          status: 'unread'
-        });
+          // 新增通知到DB（email在步驟3處理）
+          await db.collection('notifications').add({
+            type: 'new_project', projectId: projectId, ownerEmail: user.email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'unread'
+          });
 
-        alert('專案建立成功');
-        projTitle.value=''; projFile.value='';
-        loadMyProjects();
-      });
-    }catch(e){
-      alert('建立失敗: '+e.message);
-    }
-    btnCreateProject.disabled = false;
-  };
+          alert('專案建立成功');
+          projTitle.value = ''; document.getElementById('proj-files').value = '';
+          loadMyProjects(); // 自動載入並刷新清單
+          show(projectsList); // 自動顯示"我的專案"區塊
+        } catch (e) {
+          alert('建立失敗: ' + e.message);
+        }
+        btnCreateProject.disabled = false;
+      };
+    };
 }
 
 // ================ Projects (client) ===================
-async function loadMyProjects(){
-  projectsContainer.innerHTML = '讀取中...';
+async function loadMyProjects() {
+  projectsContainer.innerHTML = '<p>讀取中...</p>';
   const user = auth.currentUser;
-  const q = await db.collection('projects').where('owner','==',user.uid).orderBy('createdAt','desc').get();
-  if(q.empty){ projectsContainer.innerHTML = '<i>尚無案件</i>'; return; }
-  projectsContainer.innerHTML = '';
+  const q = await db.collection('projects').where('owner', '==', user.uid).orderBy('createdAt', 'desc').get();
+  if (q.empty) { projectsContainer.innerHTML = '<i>尚無案件</i>'; return; }
+
+  let html = `<table class="table table-striped table-hover">
+    <thead><tr><th>標題</th><th>目前狀態</th><th>進度</th><th>附件下載</th><th>操作</th></tr></thead><tbody>`;
   q.forEach(doc => {
     const d = doc.data(); const id = doc.id;
-    const div = document.createElement('div'); div.className='card';
-    div.innerHTML = `<strong>${d.title}</strong><br>Status: ${WORKFLOW_LABELS[d.status] || d.status}<br>
-      <button onclick="viewProject('${id}')">檢視</button>`;
-    projectsContainer.appendChild(div);
+    const progressIdx = WORKFLOW.indexOf(d.status);
+    const progressPct = Math.round((progressIdx / (WORKFLOW.length - 1)) * 100); // 計算進度百分比
+    const attachmentsHtml = (d.attachments || []).map(a => `<a href="${a.downloadUrl}" target="_blank">${a.name} (${a.type})</a>`).join('<br>') || '-'; // 附件連結列表
+
+    html += `<tr>
+      <td>${d.title}</td>
+      <td>${WORKFLOW_LABELS[d.status] || d.status}</td>
+      <td><div class="progress"><div class="progress-bar" style="width: ${progressPct}%">${progressPct}%</div></div></td>
+      <td>${attachmentsHtml}</td>
+      <td><button class="btn btn-sm btn-info" onclick="viewProject('${id}')">詳細檢視</button></td>
+    </tr>`;
   });
+  html += '</tbody></table>';
+  projectsContainer.innerHTML = html;
 }
 
 // 詳細任務定義（誰負責 / 顯示名稱）
@@ -489,6 +506,18 @@ async function loadAllProjectsForAdmin(){
     adminProjects.appendChild(div);
   });
 }
+
+// 新增: admin手動加用戶（給非允許域名）
+window.adminAddUser = async function(email, pw) {
+  if (!isAdminEmail(auth.currentUser.email)) { alert('僅管理員可操作'); return; }
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pw);
+    await db.collection('users').doc(cred.user.uid).set({
+      email: email, approved: true, role: 'customer', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('用戶已手動加入');
+  } catch (e) { alert('失敗: ' + e.message); }
+};
 
 window.adminViewProject = async function(pid){
   const doc = await db.collection('projects').doc(pid).get();
