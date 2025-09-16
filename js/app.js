@@ -293,28 +293,36 @@ async function setupUIForUser(user, udata) {
 // ================ Projects (client) ===================
 async function loadMyProjects() {
   projectsContainer.innerHTML = '<p>讀取中...</p>';
-  const user = auth.currentUser;
-  const q = await db.collection('projects').where('owner', '==', user.uid).orderBy('createdAt', 'desc').get();
-  if (q.empty) { projectsContainer.innerHTML = '<i>尚無案件</i>'; return; }
+  try {
+    const user = auth.currentUser;
+    const q = await db.collection('projects').where('owner', '==', user.uid).orderBy('createdAt', 'desc').get();
+    if (q.empty) { 
+      projectsContainer.innerHTML = '<i>尚無案件</i>'; 
+      return; 
+    }
 
-  let html = `<table class="table table-striped table-hover">
-    <thead><tr><th>標題</th><th>目前狀態</th><th>進度</th><th>附件下載</th><th>操作</th></tr></thead><tbody>`;
-  q.forEach(doc => {
-    const d = doc.data(); const id = doc.id;
-    const progressIdx = WORKFLOW.indexOf(d.status);
-    const progressPct = Math.round((progressIdx / (WORKFLOW.length - 1)) * 100); // 計算進度百分比
-    const attachmentsHtml = (d.attachments || []).map(a => `<a href="${a.downloadUrl}" target="_blank">${a.name} (${a.type})</a>`).join('<br>') || '-'; // 附件連結列表
+    let html = `<table class="table table-striped table-hover">
+      <thead><tr><th>標題</th><th>目前狀態</th><th>進度</th><th>附件下載</th><th>操作</th></tr></thead><tbody>`;
+    q.forEach(doc => {
+      const d = doc.data(); const id = doc.id;
+      const progressIdx = WORKFLOW.indexOf(d.status);
+      const progressPct = Math.round((progressIdx / (WORKFLOW.length - 1)) * 100);
+      const attachmentsHtml = (d.attachments || []).map(a => `<a href="${a.downloadUrl}" target="_blank">${a.name} (${a.type})</a>`).join('<br>') || '-';
 
-    html += `<tr>
-      <td>${d.title}</td>
-      <td>${WORKFLOW_LABELS[d.status] || d.status}</td>
-      <td><div class="progress"><div class="progress-bar" style="width: ${progressPct}%">${progressPct}%</div></div></td>
-      <td>${attachmentsHtml}</td>
-      <td><button class="btn btn-sm btn-info" onclick="viewProject('${id}')">詳細檢視</button></td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-  projectsContainer.innerHTML = html;
+      html += `<tr>
+        <td>${d.title}</td>
+        <td>${WORKFLOW_LABELS[d.status] || d.status}</td>
+        <td><div class="progress"><div class="progress-bar" style="width: ${progressPct}%">${progressPct}%</div></div></td>
+        <td>${attachmentsHtml}</td>
+        <td><button class="btn btn-sm btn-info" onclick="viewProject('${id}')">詳細檢視</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    projectsContainer.innerHTML = html;
+  } catch (e) {
+    console.error('載入專案失敗:', e);  // 記錄錯誤
+    projectsContainer.innerHTML = '<p class="text-danger">載入失敗，請檢查網路或權限</p>';  // 顯示錯誤訊息
+  }
 }
 
 // 詳細任務定義（誰負責 / 顯示名稱）
