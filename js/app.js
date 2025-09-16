@@ -54,8 +54,8 @@ const notificationsContainer = document.getElementById('notifications');
 function show(el){ if(el) el.classList.remove('hidden'); }
 function hide(el){ if(el) el.classList.add('hidden'); }
 
-function isAdminEmail(email){
-  return ADMIN_EMAILS.includes(String(email || '').toLowerCase());
+function isAdmin(udata) {
+  return udata && udata.role === 'admin';
 }
 function isFreeEmail(email){
   const lower = String(email || '').toLowerCase();
@@ -207,14 +207,14 @@ auth.onAuthStateChanged(async user => {
 });
 
 // ================ UI & App functions ===================
-async function setupUIForUser(user, udata){
+async function setupUIForUser(user, udata) {
   document.getElementById('auth-area').classList.add('hidden');
   show(btnLogout);
   show(userArea);
   userEmailEl.innerText = user.email;
   userNote.innerText = udata.role === 'admin' ? '（管理員）' : '';
 
-  if(isAdminEmail(user.email) || udata.role === 'admin'){
+  if (isAdmin(udata)) { // 使用角色檢查
     show(adminArea);
     loadPendingUsers();
     loadAllProjectsForAdmin();
@@ -365,7 +365,7 @@ window.viewProject = async function(projectId){
         // 客戶當前任務
         action = `<button class="btn btn-sm btn-success" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
       }
-      if(wf.role==='admin' && isAdminEmail(auth.currentUser.email)){
+      if(wf.role==='admin' && isAdmin(auth.currentUser.email)){
         // 管理員當前任務
         action = `<button class="btn btn-sm btn-warning" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
       }
@@ -509,7 +509,7 @@ async function loadAllProjectsForAdmin(){
 
 // 新增: admin手動加用戶（給非允許域名）
 window.adminAddUser = async function(email, pw) {
-  if (!isAdminEmail(auth.currentUser.email)) { alert('僅管理員可操作'); return; }
+  if (!isAdmin(auth.currentUser.email)) { alert('僅管理員可操作'); return; }
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     await db.collection('users').doc(cred.user.uid).set({
