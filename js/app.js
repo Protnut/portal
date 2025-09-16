@@ -320,9 +320,14 @@ async function loadMyProjects() {
     html += '</tbody></table>';
     projectsContainer.innerHTML = html;
   } catch (e) {
-    console.error('載入專案失敗:', e);  // 記錄錯誤
-    projectsContainer.innerHTML = '<p class="text-danger">載入失敗，請檢查網路或權限</p>';  // 顯示錯誤訊息
+  console.error('載入專案失敗:', e.message, e.code, e);  // 詳細錯誤日誌
+  let errorMsg = '載入失敗，請檢查網路或權限';
+  if (e.code === 'permission-denied') {
+    errorMsg = '權限不足，請確認規則設定';
+  } else if (e.code === 'unavailable') {
+    errorMsg = '網路問題，請重試';
   }
+  projectsContainer.innerHTML = `<p class="text-danger">${errorMsg}</p>`;
 }
 
 // 詳細任務定義（誰負責 / 顯示名稱）
