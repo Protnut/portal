@@ -329,6 +329,7 @@ async function loadMyProjects() {
   }
   projectsContainer.innerHTML = `<p class="text-danger">${errorMsg}</p>`;
 }
+}
 
 // 詳細任務定義（誰負責 / 顯示名稱）
 const WORKFLOW_DETAIL = {

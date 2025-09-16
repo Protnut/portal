@@ -68,7 +68,7 @@ btnSignup.onclick = async () => {
       status: "unread"
     });
 
-    alert("註冊成功！已寄出驗證信，請完成驗證並等待管理員審核。");
+    alert("註冊成功！已寄出驗證信，請完成驗證並等待管理員審核。審核通過後，即可登入 Portal 系統。");
     suEmail.value = "";
     suPw.value = "";
 
