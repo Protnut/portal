@@ -1,4 +1,4 @@
-// /js/app.js - fixed version_0915_2
+// /js/app.js - fixed version_0917
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
@@ -620,5 +620,3 @@ window.markNotificationRead = async function(nid){
   await db.collection('notifications').doc(nid).update({ status: 'read', readAt: Date.now() });
   loadNotificationsForAdmin();
 };
-
-
