@@ -36,11 +36,9 @@ const userArea = document.getElementById('user-area');
 const userEmailEl = document.getElementById('user-email');
 const userNote = document.getElementById('user-note');
 const btnNewProject = document.getElementById('btn-new-project');
-const btnViewProjects = document.getElementById('btn-view-projects');
 
 const newProjectArea = document.getElementById('new-project-area');
 const projTitle = document.getElementById('proj-title');
-const projFile = document.getElementById('proj-file');
 const btnCreateProject = document.getElementById('btn-create-project');
 
 const projectsList = document.getElementById('projects-list');
@@ -170,7 +168,7 @@ if(btnLogout){
 auth.onAuthStateChanged(async user => {
   if(!user){
     hide(userArea); hide(adminArea); hide(btnLogout);
-    show(document.getElementById('signup-form')); show(document.getElementById('login-form'));
+    show(document.getElementById('auth-area'));
     return;
   }
 
@@ -225,7 +223,10 @@ async function setupUIForUser(user, udata) {
   }
 
   if(btnNewProject) btnNewProject.onclick = ()=> show(newProjectArea);
-  if(btnViewProjects) btnViewProjects.onclick = ()=> { loadMyProjects(); show(projectsList); };
+    
+    // ✅ 登入後自動載入「我的專案」
+  loadMyProjects();
+  show(projectsList);
 
     if (btnCreateProject) {
       btnCreateProject.onclick = async () => {
@@ -288,7 +289,7 @@ async function setupUIForUser(user, udata) {
         }
         btnCreateProject.disabled = false;
       };
-    };
+    }
 }
 
 // ================ Projects (client) ===================
