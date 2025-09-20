@@ -1,3 +1,4 @@
+
 // /js/app.js - fixed version_0917
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -224,10 +225,8 @@ async function setupUIForUser(user, udata) {
   }
 
   if(btnNewProject) btnNewProject.onclick = ()=> show(newProjectArea);
+  if(btnViewProjects) btnViewProjects.onclick = ()=> { loadMyProjects(); show(projectsList); };
 
-          loadMyProjects();    // ✅ 登入後自動載入「我的專案」
-          show(projectsList);
-    
     if (btnCreateProject) {
       btnCreateProject.onclick = async () => {
         const title = (projTitle.value || '').trim();
