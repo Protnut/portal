@@ -1,3 +1,4 @@
+
 // /js/app.js - fixed version_0917
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -35,9 +36,11 @@ const userArea = document.getElementById('user-area');
 const userEmailEl = document.getElementById('user-email');
 const userNote = document.getElementById('user-note');
 const btnNewProject = document.getElementById('btn-new-project');
+const btnViewProjects = document.getElementById('btn-view-projects');
 
 const newProjectArea = document.getElementById('new-project-area');
 const projTitle = document.getElementById('proj-title');
+const projFile = document.getElementById('proj-file');
 const btnCreateProject = document.getElementById('btn-create-project');
 
 const projectsList = document.getElementById('projects-list');
@@ -165,57 +168,43 @@ if(btnLogout){
 
 // ================ Auth state change ===================
 auth.onAuthStateChanged(async user => {
-    try {
-        if (!user) {
-            hide(userArea);
-            hide(adminArea);
-            hide(btnLogout);
-            show(document.getElementById('auth-area'));
-            return;
-        }
+  if(!user){
+    hide(userArea); hide(adminArea); hide(btnLogout);
+    show(document.getElementById('signup-form')); show(document.getElementById('login-form'));
+    return;
+  }
 
-        const udRef = db.collection('users').doc(user.uid);
-        const udSnap = await udRef.get();
+  const udRef = db.collection('users').doc(user.uid);
+  const udSnap = await udRef.get();
+  if(!udSnap.exists){
+    await udRef.set({
+      email: user.email,
+      approved: false,
+      role: 'customer',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('notifications').add({
+      type: 'new_signup',
+      email: user.email,
+      uid: user.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      status: 'unread'
+    });
+    alert('帳號資料已建立，請等待管理員審核');
+    await auth.signOut();
+    location.reload();
+    return;
+  }
 
-        let udata;
-        if (!udSnap.exists) {
-            // 新建 user document
-            await udRef.set({
-                email: user.email,
-                approved: false,
-                role: 'customer',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            await db.collection('notifications').add({
-                type: 'new_signup',
-                email: user.email,
-                uid: user.uid,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                status: 'unread'
-            });
-            alert('帳號資料已建立，請等待管理員審核');
-            await auth.signOut();
-            location.reload();
-            return;
-        } else {
-            udata = udSnap.data();
-            if (!udata.approved) {
-                alert('您的帳號尚未審核通過');
-                await auth.signOut();
-                location.reload();
-                return;
-            }
-        }
+  const udata = udSnap.data();
+  if(!udata.approved){
+    alert('您的帳號尚未審核通過');
+    await auth.signOut();
+    location.reload();
+    return;
+  }
 
-        setupUIForUser(user, udata);
-    } catch (e) {
-        console.error('Auth state 初始化錯誤:', e);
-        alert('初始化失敗: ' + e.message);
-        hide(userArea);
-        hide(adminArea);
-        hide(btnLogout);
-        show(document.getElementById('auth-area'));
-    }
+  setupUIForUser(user, udata);
 });
 
 // ================ UI & App functions ===================
@@ -236,10 +225,7 @@ async function setupUIForUser(user, udata) {
   }
 
   if(btnNewProject) btnNewProject.onclick = ()=> show(newProjectArea);
-    
-    // ✅ 登入後自動載入「我的專案」
-  loadMyProjects();
-  show(projectsList);
+  if(btnViewProjects) btnViewProjects.onclick = ()=> { loadMyProjects(); show(projectsList); };
 
     if (btnCreateProject) {
       btnCreateProject.onclick = async () => {
@@ -302,7 +288,7 @@ async function setupUIForUser(user, udata) {
         }
         btnCreateProject.disabled = false;
       };
-    }
+    };
 }
 
 // ================ Projects (client) ===================
@@ -394,7 +380,7 @@ window.viewProject = async function(projectId){
         // 客戶當前任務
         action = `<button class="btn btn-sm btn-success" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
       }
-      if(wf.role==='admin' && isAdmin(udata)){
+      if(wf.role==='admin' && isAdmin(auth.currentUser.email)){
         // 管理員當前任務
         action = `<button class="btn btn-sm btn-warning" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
       }
@@ -538,7 +524,7 @@ async function loadAllProjectsForAdmin(){
 
 // 新增: admin手動加用戶（給非允許域名）
 window.adminAddUser = async function(email, pw) {
-  if (!isAdmin(currentUserData)) { alert('僅管理員可操作'); return; }
+  if (!isAdmin(auth.currentUser.email)) { alert('僅管理員可操作'); return; }
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     await db.collection('users').doc(cred.user.uid).set({
