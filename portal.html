@@ -22,14 +22,8 @@
 <body class="container mt-5">
   <div id="auth-area">
     <div class="row">
-      <div class="col-md-6">
-        <h3>註冊帳號</h3>
-        <p>申請註冊<br>僅允許公司信箱 (.com / .com.tw / .net)<br>禁止 Gmail / Yahoo / Outlook 等免費信箱</p>
-        <input type="email" id="su-email" class="form-control mb-2" placeholder="Email">
-        <input type="password" id="su-pw" class="form-control mb-2" placeholder="密碼">
-        <button id="btn-signup" class="btn btn-primary">註冊</button>
-      </div>
-      <div class="col-md-6">
+      <div id="auth-area" class="d-flex justify-content-center">
+        <div class="col-md-6">
         <h3>登入帳號</h3>
         <input type="email" id="li-email" class="form-control mb-2" placeholder="Email">
         <input type="password" id="li-pw" class="form-control mb-2" placeholder="密碼">
@@ -40,10 +34,7 @@
   </div>
 
   <div id="user-area" class="hidden">
-    <h2>歡迎, <span id="user-email"></span> <span id="user-note"></span></h2>
-    <button id="btn-logout" class="btn btn-danger">登出</button>
-    <button id="btn-new-project" class="btn btn-primary ms-2">➕ 建立新專案</button>
-    <button id="btn-view-projects" class="btn btn-info ms-2">📂 我的專案</button>
+    <h3>Welcome, <span id="user-email"></span> <span id="user-note"></span><button id="btn-logout" class="btn btn-danger btn-sm ms-3">登出</button></h3>
 
     <!-- 新增: 流程教學區塊 -->
     <div id="tutorial-area" class="mt-4 card p-3">
@@ -69,7 +60,7 @@
     </div>
 
     <div id="projects-list" class="hidden mt-4">
-      <h3>我的專案</h3>
+      <h3>我的專案<button id="btn-new-project" class="btn btn-primary btn-sm ms-3">➕ 建立新專案</button></h3>
       <div id="projects-container"></div> <!-- 這裡會用表格顯示清單 -->
     </div>
   </div>
