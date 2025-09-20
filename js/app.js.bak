@@ -225,9 +225,7 @@ async function setupUIForUser(user, udata) {
   }
 
   if(btnNewProject) btnNewProject.onclick = ()=> show(newProjectArea);
-// ✅ 登入後自動載入「我的專案」
-     loadMyProjects();
-     show(projectsList);
+  if(btnViewProjects) btnViewProjects.onclick = ()=> { loadMyProjects(); show(projectsList); };
 
     if (btnCreateProject) {
       btnCreateProject.onclick = async () => {
