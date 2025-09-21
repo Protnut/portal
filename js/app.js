@@ -305,7 +305,7 @@ async function loadMyProjects() {
     }
 
     let html = `<table class="table table-striped table-hover">
-      <thead><tr><th>標題</th><th>目前狀態</th><th>進度</th><th>附件下載</th><th>操作</th></tr></thead><tbody>`;
+      <thead><tr><th>專案名</th><th>狀態</th><th>進度條</th><th>附件</th><th>操作</th></tr></thead><tbody>`;
     q.forEach(doc => {
       const d = doc.data(); const id = doc.id;
       const progressIdx = WORKFLOW.indexOf(d.status);
