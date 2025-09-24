@@ -86,6 +86,70 @@ function nextStatus(curr){
   return WORKFLOW[idx + 1];
 }
 
+function renderWorkflowTable(projectId, projectData){
+  const steps = projectData.steps || {};
+  const attachments = projectData.attachments || [];
+
+  let html = `<table class="table table-bordered"><thead>
+    <tr><th>流程</th><th>執行方</th><th>執行方備註</th><th>附件</th><th>確認</th><th>狀態</th></tr>
+    </thead><tbody>`;
+
+  WORKFLOW.forEach(stepKey=>{
+    const wf = WORKFLOW_DETAIL[stepKey];
+    const step = steps[stepKey] || { status: 'not_started', executorNote: '' };
+    // attachments for this step
+    const filesForStep = attachments.filter(a => a.step === stepKey);
+
+    // 權限判斷
+    const executorIsCustomer = wf.role === 'customer';
+    const currentUserIsExecutor = (executorIsCustomer && auth.currentUser && projectData.owner === auth.currentUser.uid) || (!executorIsCustomer && isAdminUser());
+    const confirmRoleIsAdmin = !executorIsCustomer; // quick rule: confirmer opposite role
+    const currentUserIsConfirmer = (confirmRoleIsAdmin && isAdminUser()) || (!confirmRoleIsAdmin && auth.currentUser && projectData.owner === auth.currentUser.uid);
+    const canEdit = currentUserIsExecutor && step.status !== 'completed';
+    const canConfirm = currentUserIsConfirmer && step.status === 'in_progress';
+
+    // 附件區 HTML（列出 & 刪除按鈕）
+    let filesHtml = filesForStep.length ? filesForStep.map((f, idx) => {
+      const delBtn = canEdit ? `<button class="btn btn-sm btn-danger" onclick="deleteAttachment('${projectId}','${f.storagePath}')">刪除</button>` : '';
+      return `<div>${f.name} (${f.uploadedBy||''}) <a href="${f.downloadUrl}" target="_blank">下載</a> ${delBtn}</div>`;
+    }).join('') : '-';
+
+    // 新增上傳 input（只有執行方可以）
+    if(canEdit){
+      filesHtml += `<div class="mt-1">
+        <input type="file" id="step-file-${projectId}-${stepKey}" onchange="uploadStepAttachment('${projectId}','${stepKey}', this)" />
+      </div>`;
+      // 編輯備註 textarea（執行方）
+    }
+
+    const noteHtml = canEdit
+      ? `<textarea id="step-note-${projectId}-${stepKey}" class="form-control" rows="2">${step.executorNote || ''}</textarea>
+         <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存備註</button>`
+      : `<div>${step.executorNote || ''}</div>`;
+
+    // 確認按鈕（只有確認方可按）
+    const confirmBtn = canConfirm ? `<button class="btn btn-success" onclick="confirmStep('${projectId}','${stepKey}')">確認完成</button>` : (step.status === 'completed' ? '✅ 已完成' : '');
+
+    html += `<tr>
+      <td>${WORKFLOW_LABELS[stepKey] || stepKey}</td>
+      <td>${wf.role === 'customer' ? '客戶' : '公司（PROTNUT）'}</td>
+      <td>${noteHtml}</td>
+      <td>${filesHtml}</td>
+      <td>${confirmBtn}</td>
+      <td>${step.status}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  // 管理者 override 區（如需）
+  if(isAdminUser()){
+    html += `<div><strong>管理員操作</strong>：
+      <button class="btn btn-sm btn-warning" onclick="adminOverrideStepPrompt('${projectId}')">修正步驟/重開/強制確認</button>
+    </div>`;
+  }
+  return html;
+}
+
 // 新增: 驗證檔案（禁止.exe）
 window.validateFiles = function(input) {
   const files = input.files;
@@ -369,55 +433,10 @@ window.viewProject = async function(projectId){
   const snap = await db.collection('projects').doc(projectId).get();
   if(!snap.exists){ alert('找不到案件'); return; }
   const d = snap.data();
+  // 移除 title 後方的狀態顯示（依需求：不要顯示 "專案名稱 — 任務名稱"）
+  let html = `<h4>${d.title}</h4>`;
 
-  let html = `<h4>${d.title} — ${WORKFLOW_LABELS[d.status] || d.status}</h4>`;
-
-  // 流程表
-  html += `<table class="table table-dark table-bordered">
-    <thead><tr>
-      <th>任務</th><th>負責</th><th>狀態</th><th>附件</th><th>操作</th>
-    </tr></thead><tbody>`;
-
-  WORKFLOW.forEach(s=>{
-    const wf = WORKFLOW_DETAIL[s];
-    const idx = WORKFLOW.indexOf(s);
-    const currIdx = WORKFLOW.indexOf(d.status);
-    const done = idx < currIdx;
-    const current = idx === currIdx;
-
-    // 抓取該任務相關附件
-    const files = (d.attachments||[])
-      .filter(a => a.type === s 
-                || (s==='uploaded' && a.type==='estimate-file')
-                || (s==='quoted' && a.type==='quotation')
-                || (s==='po_received' && a.type==='po')
-                || (s==='delivery' && (a.type==='inspection-report' || a.type==='delivery')))
-      .map(a=> `<a target="_blank" href="${a.downloadUrl}">${a.name}</a>` )
-      .join('<br>');
-
-    // 操作按鈕：只有當前任務、且是該角色負責人
-    let action = '';
-    if(current){
-      if(wf.role==='customer' && auth.currentUser.uid===d.owner){
-        // 客戶當前任務
-        action = `<button class="btn btn-sm btn-success" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
-      }
-      if(wf.role==='admin' && isAdmin(auth.currentUser.email)){
-        // 管理員當前任務
-        action = `<button class="btn btn-sm btn-warning" onclick="completeTask('${projectId}','${s}')">確認完成</button>`;
-      }
-    }
-
-    html += `<tr>
-      <td>${wf.label}</td>
-      <td>${wf.role==='customer'?'客戶':'公司'}</td>
-      <td>${done? '✅ 完成' : current? '⏳ 進行中' : '❌ 未開始'}</td>
-      <td>${files || '-'}</td>
-      <td>${action}</td>
-    </tr>`;
-  });
-
-  html += `</tbody></table>`;
+  html += renderWorkflowTable(projectId, d);
 
   // 歷史紀錄
   html += '<h5>歷史紀錄</h5><ul>';
@@ -429,7 +448,8 @@ window.viewProject = async function(projectId){
 
   document.getElementById('projects-container').innerHTML = html;
   show(projectsList);
-}
+};
+
 
 // ================ 任務完成 ===================
 window.completeTask = async function(pid, status){
