@@ -240,66 +240,76 @@ async function setupUIForUser(user, udata) {
      show(projectsList);
 
     if (btnCreateProject) {
-      btnCreateProject.onclick = async () => {
-        const title = (projTitle.value || '').trim();
-        const files = document.getElementById('proj-files').files;
-        if (!title || files.length === 0) { alert('請填名稱並選檔案'); return; }
-        btnCreateProject.disabled = true;
-        try {
-          const pRef = await db.collection('projects').add({
-            owner: user.uid,
-            title: title,
-            status: WORKFLOW[0],
-            attachments: [],
-            history: [{ status: WORKFLOW[0], by: user.email, ts: Date.now(), note: '客戶上傳估價檔' }],
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          const projectId = pRef.id;
-          const uid = user.uid;
-          let attachments = [];
-
-          // 多檔上傳迴圈
-          for (let file of files) {
-            const filePath = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${file.name}`;
-            const storageRef = storage.ref().child(filePath);
-            await storageRef.put(file); // 上傳檔案
-            const url = await storageRef.getDownloadURL(); // 取下載URL
-            attachments.push({
-              name: file.name,
-              storagePath: filePath,
-              downloadUrl: url,
-              type: 'estimate-file',
-              uploadedBy: user.email,
-              uploadedAt: Date.now()
+      // 假設你已經在 setupUIForUser 之中有 btnCreateProject 綁定
+        btnCreateProject.onclick = async () => {
+          const title = (projTitle.value || '').trim();
+          const files = document.getElementById('proj-files').files;
+          if (!title || files.length === 0) { alert('請填名稱並選檔案'); return; }
+          btnCreateProject.disabled = true;
+          try {
+            // 建立 steps 初始狀態
+            const stepsInit = {};
+            WORKFLOW.forEach(s => {
+              stepsInit[s] = {
+                status: s === 'uploaded' ? 'in_progress' : 'not_started',
+                executorNote: '',
+                confirmedBy: '',
+                confirmedAt: null
+              };
             });
+
+            const pRef = await db.collection('projects').add({
+              owner: auth.currentUser.uid,
+              ownerEmail: auth.currentUser.email,
+              title: title,
+              status: 'uploaded',  // project level status: current active step
+              steps: stepsInit,
+              attachments: [], // 會在下方上傳後填入
+              history: [{ status: 'uploaded', by: auth.currentUser.email, ts: Date.now(), note: '客戶上傳估價檔' }],
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            const projectId = pRef.id;
+            const uid = auth.currentUser.uid;
+            const attachments = [];
+            for (let file of files) {
+              if(isDangerousFile(file.name)){ alert('禁止上傳此類型檔案：' + file.name); continue; }
+              const filePath = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${file.name}`;
+              const storageRef = storage.ref().child(filePath);
+              await storageRef.put(file);
+              const url = await storageRef.getDownloadURL();
+              attachments.push({
+                name: file.name,
+                storagePath: filePath,
+                downloadUrl: url,
+                type: 'estimate-file',
+                step: 'uploaded',        // 關聯到 'uploaded' step
+                uploadedBy: auth.currentUser.email,
+                uploadedAt: Date.now()
+              });
+            }
+
+            // 更新 attachments 到 project 中（不自動 advance）
+            await pRef.update({
+              attachments: attachments,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await db.collection('notifications').add({
+              type: 'new_project', projectId: projectId, ownerEmail: auth.currentUser.email,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'unread'
+            });
+
+            alert('專案建立成功');
+            projTitle.value = ''; document.getElementById('proj-files').value = '';
+            loadMyProjects();
+            show(projectsList);
+          } catch (e) {
+            alert('建立失敗: ' + e.message);
           }
-
-          // 更新專案資料
-          await pRef.update({
-            attachments: attachments,
-            status: nextStatus(WORKFLOW[0]),
-            history: firebase.firestore.FieldValue.arrayUnion({
-              status: nextStatus(WORKFLOW[0]), by: 'system', ts: Date.now(), note: '系統自動：上傳估價後進入下一階段'
-            }),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-
-          // 新增通知到DB（email在步驟3處理）
-          await db.collection('notifications').add({
-            type: 'new_project', projectId: projectId, ownerEmail: user.email,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'unread'
-          });
-
-          alert('專案建立成功');
-          projTitle.value = ''; document.getElementById('proj-files').value = '';
-          loadMyProjects(); // 自動載入並刷新清單
-          show(projectsList); // 自動顯示"我的專案"區塊
-        } catch (e) {
-          alert('建立失敗: ' + e.message);
-        }
-        btnCreateProject.disabled = false;
-      };
+          btnCreateProject.disabled = false;
+        };
     };
 }
 
