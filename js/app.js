@@ -150,17 +150,167 @@ function renderWorkflowTable(projectId, projectData){
   return html;
 }
 
-// 新增: 驗證檔案（禁止.exe）
-window.validateFiles = function(input) {
-  const files = input.files;
-  for (let file of files) {
-    if (file.name.endsWith('.exe')) {
-      alert('禁止上傳.exe檔案');
-      input.value = ''; // 清空輸入
-      return;
-    }
-  }
+// 上傳 step 檔案 - 只允許執行方上傳
+window.uploadStepAttachment = async function(projectId, stepKey, inputEl){
+  const f = inputEl.files[0];
+  if(!f){ alert('請選檔案'); return; }
+  if(isDangerousFile(f.name)){ alert('禁止上傳此類型檔案：' + f.name); inputEl.value=''; return; }
+
+  const uid = auth.currentUser.uid;
+  const path = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${f.name}`;
+  const storageRef = storage.ref().child(path);
+  try{
+    await storageRef.put(f);
+    const url = await storageRef.getDownloadURL();
+    const attachObj = {
+      name: f.name, storagePath: path, downloadUrl: url, type: 'step-file',
+      step: stepKey, uploadedBy: auth.currentUser.email, uploadedAt: Date.now()
+    };
+    await db.collection('projects').doc(projectId).update({
+      attachments: firebase.firestore.FieldValue.arrayUnion(attachObj),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('上傳成功');
+    viewProject(projectId);
+  }catch(e){ alert('上傳失敗: ' + e.message); }
 };
+
+// 刪除附件（執行方在尚未確認前可刪）
+// 使用 storagePath 做刪除與 filter
+window.deleteAttachment = async function(projectId, storagePath){
+  if(!confirm('確定要刪除此檔案？')) return;
+  const docRef = db.collection('projects').doc(projectId);
+  const snap = await docRef.get();
+  if(!snap.exists) return;
+  const d = snap.data();
+  const attach = (d.attachments || []).find(a => a.storagePath === storagePath);
+  if(!attach){ alert('找不到附件'); return; }
+  // 檢查是否允許刪除（必須是該 step 執行方，且 step 未完成，或管理者）
+  const stepKey = attach.step;
+  const step = (d.steps && d.steps[stepKey]) || { status: 'not_started' };
+  const wf = WORKFLOW_DETAIL[stepKey];
+  const executorIsCustomer = wf.role === 'customer';
+  const currentUserIsExecutor = (executorIsCustomer && auth.currentUser.uid === d.owner) || isAdminUser();
+  if(!currentUserIsExecutor || step.status === 'completed'){
+    alert('您無權刪除此附件或該步驟已鎖定');
+    return;
+  }
+
+  try{
+    // 刪 storage
+    await storage.ref().child(storagePath).delete().catch(()=>{/*若 storage 刪不到也繼續處理 DB */});
+    // 更新 DB：把 attachments filter 掉
+    const newAttachments = (d.attachments || []).filter(a => a.storagePath !== storagePath);
+    await docRef.update({ attachments: newAttachments, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    alert('刪除完成');
+    viewProject(projectId);
+  }catch(e){ alert('刪除失敗: ' + e.message); }
+};
+
+// 儲存執行方備註
+window.saveExecutorNote = async function(projectId, stepKey){
+  const ta = document.getElementById(`step-note-${projectId}-${stepKey}`);
+  if(!ta) return;
+  const note = ta.value || '';
+  // 權限檢查：只有執行方並且 step 未完成
+  const docRef = db.collection('projects').doc(projectId);
+  const snap = await docRef.get();
+  if(!snap.exists) return;
+  const d = snap.data();
+  const step = (d.steps && d.steps[stepKey]) || {};
+  const wf = WORKFLOW_DETAIL[stepKey];
+  const executorIsCustomer = wf.role === 'customer';
+  const currentUserIsExecutor = (executorIsCustomer && auth.currentUser.uid === d.owner) || isAdminUser();
+  if(!currentUserIsExecutor || step.status === 'completed'){ alert('無權編輯備註或步驟已鎖定'); return; }
+
+  const updateObj = {};
+  updateObj[`steps.${stepKey}.executorNote`] = note;
+  updateObj.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+  await docRef.update(updateObj);
+  alert('備註已儲存');
+  viewProject(projectId);
+};
+
+// 確認 step（由確認方按）
+window.confirmStep = async function(projectId, stepKey){
+  if(!confirm('確定要由確認方確認此步驟完成？')) return;
+  const docRef = db.collection('projects').doc(projectId);
+  const snap = await docRef.get(); if(!snap.exists) return;
+  const d = snap.data();
+
+  const stepIndex = WORKFLOW.indexOf(stepKey);
+  if(stepIndex === -1) return;
+
+  // 權限檢查：是否為確認方（若 step 執行方是 customer，則確認方預設為 admin，反之亦然）或 admin 覆寫
+  const wf = WORKFLOW_DETAIL[stepKey];
+  const executorIsCustomer = wf.role === 'customer';
+  const confirmRoleIsAdmin = !executorIsCustomer;
+  const currentUserIsConfirmer = (confirmRoleIsAdmin && isAdminUser()) || (!confirmRoleIsAdmin && auth.currentUser.uid === d.owner);
+  if(!currentUserIsConfirmer && !isAdminUser()){ alert('您不是確認方，無法確認此步驟'); return; }
+
+  const next = WORKFLOW[stepIndex + 1];
+  const updateObj = {};
+  updateObj[`steps.${stepKey}.status`] = 'completed';
+  updateObj[`steps.${stepKey}.confirmedBy`] = auth.currentUser.email;
+  updateObj[`steps.${stepKey}.confirmedAt`] = Date.now();
+  updateObj.history = firebase.firestore.FieldValue.arrayUnion({
+    status: stepKey, by: auth.currentUser.email, ts: Date.now(), note: '確認完成'
+  });
+  if(next){
+    updateObj.status = next;  // project level current step
+    updateObj[`steps.${next}.status`] = 'in_progress';
+  } else {
+    updateObj.status = 'completed_all';
+  }
+  updateObj.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
+  await docRef.update(updateObj);
+
+  await db.collection('notifications').add({
+    type: 'task_completed',
+    projectId: projectId,
+    completed: stepKey,
+    next: next,
+    by: auth.currentUser.email,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    status: 'unread'
+  });
+
+  alert('已確認，狀態已更新');
+  viewProject(projectId);
+};
+
+window.adminOverrideStepPrompt = function(projectId){
+  const step = prompt('輸入要修正的 step 名稱 (例如 uploaded, dfm, quoted, po_received, prototyping, delivery)');
+  if(!step) return;
+  const status = prompt('輸入新狀態 (not_started / in_progress / completed)');
+  if(!status) return;
+  adminOverrideStep(projectId, step, status);
+};
+
+window.adminOverrideStep = async function(projectId, stepKey, newStatus){
+  if(!isAdminUser()){ alert('僅管理者可操作'); return; }
+  const docRef = db.collection('projects').doc(projectId);
+  const snap = await docRef.get(); if(!snap.exists) return;
+  const updateObj = {};
+  updateObj[`steps.${stepKey}.status`] = newStatus;
+  updateObj.history = firebase.firestore.FieldValue.arrayUnion({
+    status: stepKey, by: auth.currentUser.email, ts: Date.now(), note: `管理員強制設為 ${newStatus}`
+  });
+  if(newStatus === 'completed'){
+    const idx = WORKFLOW.indexOf(stepKey);
+    const next = WORKFLOW[idx+1];
+    if(next){ updateObj.status = next; updateObj[`steps.${next}.status`] = 'in_progress'; }
+    else { updateObj.status = 'completed_all'; }
+  } else if(newStatus === 'in_progress'){
+    updateObj.status = stepKey;
+  }
+  updateObj.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+  await docRef.update(updateObj);
+  alert('管理員已更新步驟狀態');
+  viewProject(projectId);
+};
+
 
 // ================ Signup ===================
 if(btnSignup){
