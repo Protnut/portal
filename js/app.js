@@ -1,4 +1,15 @@
-// /js/app.js - fixed version_0917
+// /js/app.js - fixed version_0924
+// ===== 常數與 helper =====
+const DANGEROUS_EXTS = ['.exe','.msi','.bat','.cmd','.com','.scr','.js','.vbs','.ps1','.jar','.sh'];
+function fileExt(name){ return (name || '').slice((name || '').lastIndexOf('.')).toLowerCase(); }
+function isDangerousFile(name){ const ext = fileExt(name); return DANGEROUS_EXTS.includes(ext); }
+
+// 全域當前使用者（會由 onAuthStateChanged 設定）
+window.CURRENT_USER = null;
+
+function isAdminUser(){ return window.CURRENT_USER && window.CURRENT_USER.role === 'admin'; }
+function isProjectOwner(proj){ return auth.currentUser && proj && proj.owner === auth.currentUser.uid; }
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
@@ -39,7 +50,7 @@ const btnViewProjects = document.getElementById('btn-view-projects');
 
 const newProjectArea = document.getElementById('new-project-area');
 const projTitle = document.getElementById('proj-title');
-const projFile = document.getElementById('proj-file');
+const projFile = document.getElementById('proj-files');
 const btnCreateProject = document.getElementById('btn-create-project');
 
 const projectsList = document.getElementById('projects-list');
