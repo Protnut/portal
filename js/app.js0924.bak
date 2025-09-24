@@ -39,7 +39,7 @@ const btnViewProjects = document.getElementById('btn-view-projects');
 
 const newProjectArea = document.getElementById('new-project-area');
 const projTitle = document.getElementById('proj-title');
-const projFile = document.getElementById('proj-file');
+const projFile = document.getElementById('proj-files');
 const btnCreateProject = document.getElementById('btn-create-project');
 
 const projectsList = document.getElementById('projects-list');
