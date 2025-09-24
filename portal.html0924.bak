@@ -11,7 +11,8 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-  
+  <!-- 你的app.js -->
+  <script src="app.js"></script>
   <style>
     .hidden { display: none; }
     body { background-color: #f8f9fa; }
