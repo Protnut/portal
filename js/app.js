@@ -110,12 +110,12 @@ function renderWorkflowTable(projectId, projectData){
   const attachments = projectData.attachments || [];
 
   // 狀態中文顯示
-  const STATUS_LABEL = { not_started: '未開始', in_progress: '進行中', completed: '已完成' };
+  const STATUS_LABEL = { not_started: 'unstarted', in_progress: 'OnGoing', completed: 'Finished' };
 
   let html = `<table class="table table-bordered"><thead>
     <tr>
       <th>流程</th>
-      <th>狀態</th>
+      <th>state</th>
       <th>執行方</th>
       <th>附件 (報告, 參考文件….)</th>
       <th>執行方備註</th>
