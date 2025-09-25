@@ -16,7 +16,7 @@ const DANGEROUS_EXTS = ['.exe','.msi','.bat','.cmd','.com','.scr','.js','.vbs','
 function fileExt(name){ return (name || '').slice((name || '').lastIndexOf('.')).toLowerCase(); }
 function isDangerousFile(name){ const ext = fileExt(name); return DANGEROUS_EXTS.includes(ext); }
 
-function getEmailDomain(email){
+function getDomainFromEmail(email){
   if(!email) return '';
   const parts = email.split('@');
   return parts.length === 2 ? parts[1] : email;
