@@ -164,7 +164,7 @@ function renderWorkflowTable(projectId, projectData){
       : `<div>${(step.executorNote||'')}</div>`;
 
     // 確認方資訊
-    const confirmerLabel = confirmRoleIsAdmin ? 'PROTNUT' : '客戶';
+    const confirmerLabel = confirmRoleIsAdmin ? 'PROTNUT' : getDomainFromEmail(projectData.ownerEmail);
 
     // 確認備註欄（只有確認方 / 管理員在 step 未完成時可編輯）
     const confirmNoteHtml = (currentUserIsConfirmer && step.status !== 'completed')
@@ -179,7 +179,13 @@ function renderWorkflowTable(projectId, projectData){
     } else if(step.status === 'completed'){
       const by = step.confirmedBy || '';
       const at = step.confirmedAt ? new Date(step.confirmedAt).toLocaleString() : '';
-      confirmCell = `✅ 已完成 ${by ? 'by ' + by : ''} ${at ? '('+at+')' : ''}`;
+      const byDomain = by ? getDomainFromEmail(by) : '';
+      const atFormatted = step.confirmedAt ? new Date(step.confirmedAt).toLocaleString('zh-TW', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false
+      }).replace(/\//g,'/').replace(',','') : '';
+
+      confirmCell = `✅ 已完成 ${byDomain ? 'by ' + byDomain : ''} ${atFormatted ? '('+atFormatted+')' : ''}`;
     } else {
       confirmCell = '-';
     }
@@ -684,7 +690,13 @@ window.viewProject = async function(projectId){
   html += '<h5>歷史紀錄</h5><ul>';
   (d.history||[]).forEach(h=>{
     const time = h.ts ? new Date(h.ts).toLocaleString() : '';
-    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${h.by} / ${h.note||''} / ${time}</li>`;
+    const byDomain = h.by ? getDomainFromEmail(h.by) : '';
+    const timeFormatted = h.ts ? new Date(h.ts).toLocaleString('zh-TW', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).replace(/\//g,'/').replace(',','') : '';
+
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
   });
   html += '</ul>';
 
