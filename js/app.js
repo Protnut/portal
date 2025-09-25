@@ -193,7 +193,7 @@ function renderWorkflowTable(projectId, projectData){
     html += `<tr>
       <td>${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
       <td>${STATUS_LABEL[step.status] || step.status}</td>
-      <td>${wf.role === 'customer' ? getEmailDomain(projectData.ownerEmail) : 'PROTNUT'}</td>
+      <td>${wf.role === 'customer' ? getDomainFromEmail(projectData.ownerEmail) : 'PROTNUT'}</td>
       <td style="min-width:200px">${filesHtml}</td>
       <td style="min-width:150px">${executorNoteHtml}</td>
       <td>${confirmerLabel}</td>
