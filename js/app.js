@@ -35,12 +35,12 @@ const ALLOWED_TLDS = [".com", ".com.tw", ".net"];
 // workflow
 const WORKFLOW = ["uploaded", "dfm", "quoted", "po_received", "prototyping", "delivery"];
 const WORKFLOW_LABELS = {
-  uploaded: "估價_上傳檔案",
-  dfm: "公司進行 DFM",
-  quoted: "公司完成報價",
-  po_received: "客戶已上傳 PO",
-  prototyping: "公司打樣中",
-  delivery: "產品與檢驗報告交付"
+  uploaded: "估價",
+  dfm: "DFM",
+  quoted: "報價",
+  po_received: "下單",
+  prototyping: "試樣",
+  delivery: "出貨"
 };
 
 // UI 元件
@@ -108,14 +108,14 @@ function renderWorkflowTable(projectId, projectData){
 
   let html = `<table class="table table-bordered"><thead>
     <tr>
-      <th>當前流程</th>
-      <th>專案狀態</th>
+      <th>流程</th>
+      <th>狀態</th>
       <th>執行方</th>
       <th>附件 (報告, 參考文件….)</th>
       <th>執行方備註</th>
       <th>確認方</th>
-      <th>確認備註</th>
-      <th>確認完成</th>
+      <th>確認方備註</th>
+      <th>確認</th>
     </tr>
     </thead><tbody>`;
 
@@ -158,7 +158,7 @@ function renderWorkflowTable(projectId, projectData){
       : `<div>${(step.executorNote||'')}</div>`;
 
     // 確認方資訊
-    const confirmerLabel = confirmRoleIsAdmin ? '公司（PROTNUT）' : '客戶';
+    const confirmerLabel = confirmRoleIsAdmin ? 'PROTNUT' : '客戶';
 
     // 確認備註欄（只有確認方 / 管理員在 step 未完成時可編輯）
     const confirmNoteHtml = (currentUserIsConfirmer && step.status !== 'completed')
@@ -181,7 +181,7 @@ function renderWorkflowTable(projectId, projectData){
     html += `<tr>
       <td>${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
       <td>${STATUS_LABEL[step.status] || step.status}</td>
-      <td>${wf.role === 'customer' ? (projectData.ownerEmail || '客戶') : '公司（PROTNUT）'}</td>
+      <td>${wf.role === 'customer' ? (projectData.ownerEmail || '客戶') : 'PROTNUT'}</td>
       <td style="min-width:200px">${filesHtml}</td>
       <td style="min-width:150px">${executorNoteHtml}</td>
       <td>${confirmerLabel}</td>
