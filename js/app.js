@@ -1,4 +1,4 @@
-// /js/app.js - fixed version_0924
+// /js/app.js - fixed version_0925
 // 若 portal.html 還呼叫 validateFiles，這個 wrapper 會呼叫現有的 isDangerousFile 檢查
 window.validateFiles = function(input){
   const files = input.files || [];
@@ -15,6 +15,12 @@ window.validateFiles = function(input){
 const DANGEROUS_EXTS = ['.exe','.msi','.bat','.cmd','.com','.scr','.js','.vbs','.ps1','.jar','.sh'];
 function fileExt(name){ return (name || '').slice((name || '').lastIndexOf('.')).toLowerCase(); }
 function isDangerousFile(name){ const ext = fileExt(name); return DANGEROUS_EXTS.includes(ext); }
+
+function getEmailDomain(email){
+  if(!email) return '';
+  const parts = email.split('@');
+  return parts.length === 2 ? parts[1] : email;
+}
 
 // 全域當前使用者（會由 onAuthStateChanged 設定）
 window.CURRENT_USER = null;
@@ -141,7 +147,7 @@ function renderWorkflowTable(projectId, projectData){
     // 附件欄
     let filesHtml = filesForStep.length ? filesForStep.map(f=>{
       const delBtn = canEdit ? ` <button class="btn btn-sm btn-danger" onclick="deleteAttachment('${projectId}','${f.storagePath}')">刪除</button>` : '';
-      return `<div>${f.name} (${f.uploadedBy||''}) <a href="${f.downloadUrl}" target="_blank">下載</a>${delBtn}</div>`;
+      return `<div>${f.name} <a href="${f.downloadUrl}" target="_blank">下載</a>${delBtn}</div>`;
     }).join('') : '-';
 
     if(canEdit){
@@ -181,7 +187,7 @@ function renderWorkflowTable(projectId, projectData){
     html += `<tr>
       <td>${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
       <td>${STATUS_LABEL[step.status] || step.status}</td>
-      <td>${wf.role === 'customer' ? (projectData.ownerEmail || '客戶') : 'PROTNUT'}</td>
+      <td>${wf.role === 'customer' ? getEmailDomain(projectData.ownerEmail) : 'PROTNUT'}</td>
       <td style="min-width:200px">${filesHtml}</td>
       <td style="min-width:150px">${executorNoteHtml}</td>
       <td>${confirmerLabel}</td>
@@ -630,7 +636,7 @@ async function loadMyProjects() {
       const d = doc.data(); const id = doc.id;
       const progressIdx = WORKFLOW.indexOf(d.status);
       const progressPct = Math.round((progressIdx / (WORKFLOW.length - 1)) * 100);
-      const attachmentsHtml = (d.attachments || []).map(a => `<a href="${a.downloadUrl}" target="_blank">${a.name} (${a.type})</a>`).join('<br>') || '-';
+      const attachmentsHtml = (d.attachments || []).map(a => `<a href="${a.downloadUrl}" target="_blank">${a.name}</a>`).join('<br>') || '-';
 
       html += `<tr>
         <td>${d.title}</td>
@@ -818,7 +824,7 @@ window.adminViewProject = async function(pid){
   const d = doc.data();
   let html = `<h4>${d.title} — ${WORKFLOW_LABELS[d.status] || d.status}</h4>`;
   html += '<h5>附件</h5><ul>';
-  (d.attachments||[]).forEach(a=> html += `<li>${a.name} - <a target="_blank" href="${a.downloadUrl}">下載</a> (${a.type})</li>`);
+  (d.attachments||[]).forEach(a=> html += `<li>${a.name} - <a target="_blank" href="${a.downloadUrl}">下載</a></li>`);
   html += '</ul>';
   html += `<h5>上傳報價單或檢驗報告</h5>
     <select id="admin-new-type">
