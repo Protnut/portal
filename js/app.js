@@ -108,9 +108,6 @@ function nextStatus(curr){
 function renderWorkflowTable(projectId, projectData){
   const steps = projectData.steps || {};
   const attachments = projectData.attachments || [];
-  const currentBadge = (projectData.status === stepKey) 
-    ? '<span class="badge bg-info ms-1">目前</span>' 
-    : '';
 
   // 狀態中文顯示
   const STATUS_LABEL = { not_started: 'unstarted', in_progress: 'OnGoing', completed: 'Finished' };
@@ -131,7 +128,10 @@ function renderWorkflowTable(projectId, projectData){
   WORKFLOW.forEach(stepKey => {
     const wf = WORKFLOW_DETAIL[stepKey] || { label: stepKey, executor: 'customer', confirmer: 'admin' };
     const step = steps[stepKey] || { status: 'not_started', executorNote: '', confirmNote:'', executorLocked:false };
-
+    const currentBadge = (projectData.status === stepKey) 
+      ? '<span class="badge bg-info ms-1">目前</span>' 
+      : '';
+      
     // 判斷誰是執行方 / 確認方（以 executor/confirmer 欄位）
     const executorRole = wf.executor || 'customer';
     const confirmerRole = wf.confirmer || (executorRole === 'customer' ? 'admin' : 'customer');
