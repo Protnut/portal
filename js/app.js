@@ -393,6 +393,16 @@ window.confirmStep = async function(projectId, stepKey){
     const next = WORKFLOW[idx + 1];
     updateObj.status = next;
     updateObj[`steps.${next}.status`] = 'in_progress';
+      
+  // 🔑 如果 next 是 quoted，主動寫入一筆 history，避免等待 adminUpload
+      if(next === 'quoted'){
+        updateObj.history = firebase.firestore.FieldValue.arrayUnion({
+          status: 'quoted',
+          by: auth.currentUser.email,
+          ts: Date.now(),
+          note: 'DFM 完成，自動進入報價流程'
+        });
+      }
   } else {
     updateObj.status = 'completed_all';
   }
@@ -913,8 +923,11 @@ window.adminUpload = async function(pid){
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   if(type === 'quotation'){
-    updateObj.status = 'quoted';
-  }
+      updateObj[`steps.quoted.status`] = 'in_progress';
+      if(d.status !== 'quoted'){   // 避免覆蓋客戶已推進的狀態
+        updateObj.status = 'quoted';
+      }
+    }
   await db.collection('projects').doc(pid).update(updateObj);
 
   await db.collection('notifications').add({
