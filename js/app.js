@@ -847,23 +847,23 @@ window.adminViewProject = async function(pid){
   const doc = await db.collection('projects').doc(pid).get();
   if(!doc.exists){ alert('找不到'); return; }
   const d = doc.data();
-  let html = `<h4>${d.title} — ${WORKFLOW_LABELS[d.status] || d.status}</h4>`;
-  html += '<h5>附件</h5><ul>';
-  (d.attachments||[]).forEach(a=> html += `<li>${a.name} - <a target="_blank" href="${a.downloadUrl}">下載</a></li>`);
+
+  // ✅ 改成用 renderWorkflowTable
+  let html = `<h4>${d.title}</h4>`;
+  html += renderWorkflowTable(pid, d, d.steps || {}, d.attachments || []);
+
+  // 歷史紀錄（跟 viewProject 一樣）
+  html += '<h5>歷史紀錄</h5><ul>';
+  (d.history||[]).forEach(h=>{
+    const timeFormatted = h.ts ? new Date(h.ts).toLocaleString('zh-TW', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).replace(/\//g,'/').replace(',','') : '';
+    const byDomain = h.by ? getDomainFromEmail(h.by) : '';
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
+  });
   html += '</ul>';
-  html += `<h5>上傳報價單或檢驗報告</h5>
-    <select id="admin-new-type">
-      <option value="quotation">報價單</option>
-      <option value="process-photo">製程照片</option>
-      <option value="inspection-report">檢驗報告</option>
-    </select><br><input type="file" id="admin-file"><br>
-    <button onclick="adminUpload('${pid}')">上傳並設定狀態</button>
-    <h5>手動改狀態</h5>
-    <select id="admin-set-status">
-      ${WORKFLOW.map(s => `<option value="${s}">${WORKFLOW_LABELS[s]||s}</option>`).join('')}
-    </select>
-    <button onclick="adminSetStatus('${pid}')">變更狀態</button>
-    `;
+
   document.getElementById('admin-projects').innerHTML = html;
 };
 
