@@ -390,11 +390,17 @@ window.confirmStep = async function(projectId, stepKey){
   // 將 project status 進到下一個 step（若有）
   const idx = WORKFLOW.indexOf(stepKey);
   if(idx !== -1 && idx < WORKFLOW.length - 1){
-    const next = WORKFLOW[idx + 1];
-    updateObj.status = next;
-    updateObj[`steps.${next}.status`] = 'in_progress';
-      
-  // 🔑 如果 next 是 quoted，主動寫入一筆 history，避免等待 adminUpload
+      const next = WORKFLOW[idx + 1];
+      updateObj.status = next;
+      updateObj[`steps.${next}`] = {
+        status: 'in_progress',
+        executorNote: '',
+        confirmNote: '',
+        confirmedBy: '',
+        confirmedAt: null,
+        executorLocked: false
+      };
+
       if(next === 'quoted'){
         updateObj.history = firebase.firestore.FieldValue.arrayUnion({
           status: 'quoted',
@@ -403,7 +409,7 @@ window.confirmStep = async function(projectId, stepKey){
           note: 'DFM 完成，自動進入報價流程'
         });
       }
-  } else {
+    } else {
     updateObj.status = 'completed_all';
   }
   updateObj.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
