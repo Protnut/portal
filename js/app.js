@@ -694,7 +694,7 @@ window.viewProject = async function(projectId){
   // 移除 title 後方的狀態顯示（依需求：不要顯示 "專案名稱 — 任務名稱"）
   let html = `<h4>${d.title}</h4>`;
 
-  html += renderWorkflowTable(projectId, d);
+  html += renderWorkflowTable(projectId, d, d.steps || {}, d.attachments || []);
 
   // 歷史紀錄
   html += '<h5>歷史紀錄</h5><ul>';
