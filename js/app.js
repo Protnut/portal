@@ -145,7 +145,19 @@ function renderWorkflowTable(projectId, projectData){
     const canConfirm = currentUserIsConfirmer && step.status === 'in_progress';
 
     // 附件欄：所有 step 都顯示上傳 input（當前 user 為執行方且 step 未完成）
-    let filesHtml = (attachments||[]).filter(a=>a.step===stepKey).map(a => `...`).join('') || '-';
+    let filesHtml = (attachments||[])
+      .filter(a => a.step === stepKey)
+      .map(a => {
+        let delBtn = '';
+        if (canEdit) {
+          delBtn = `<button class="btn btn-sm btn-danger ms-1" onclick="deleteAttachment('${projectId}','${a.storagePath}')">刪除</button>`;
+        }
+        return `<div>
+          <a href="${a.downloadUrl}" target="_blank">${a.name}</a> ${delBtn}
+        </div>`;
+      })
+      .join('') || '-';
+      
     if(canEdit){
       filesHtml += `<div class="mt-1">
         <input type="file" id="step-file-${projectId}-${stepKey}" onchange="uploadStepAttachment('${projectId}','${stepKey}', this)" />
@@ -187,7 +199,7 @@ function renderWorkflowTable(projectId, projectData){
     html += `<tr>
       <td>${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
       <td>${STATUS_LABEL[step.status] || step.status}</td>
-      <td>${wf.role === 'customer' ? getDomainFromEmail(projectData.ownerEmail) : 'PROTNUT'}</td>
+      <td>${wf.executor === 'customer' ? getDomainFromEmail(projectData.ownerEmail) : 'PROTNUT'}</td>
       <td style="min-width:200px">${filesHtml}</td>
       <td style="min-width:150px">${executorNoteHtml}</td>
       <td>${confirmerLabel}</td>
