@@ -174,7 +174,7 @@ function renderWorkflowTable(projectId, projectData){
     const confirmerLabel = (confirmerRole === 'admin') ? 'PROTNUT' : getDomainFromEmail(projectData.ownerEmail);
 
     // 確認方備註：**移除儲存按鈕**，只顯示 textarea（可編輯的條件：目前使用者為確認方且 step 未完成）
-    const confirmNoteHtml = (canConfirm || (currentUserIsConfirmer && step.status !== 'completed'))
+    const confirmNoteHtml = (currentUserIsConfirmer && step.status !== 'completed')
       ? `<textarea id="confirm-note-${projectId}-${stepKey}" class="form-control" rows="2">${(step.confirmNote||'')}</textarea>`
       : `<div>${(step.confirmNote||'')}</div>`;
 
@@ -549,6 +549,12 @@ auth.onAuthStateChanged(async user => {
     location.reload();
     return;
   }
+    // ✅ 把使用者角色存到全域，isAdminUser() 才能正確判斷
+  window.CURRENT_USER = { 
+    uid: user.uid, 
+    email: user.email, 
+    role: udata.role 
+  };
 
   setupUIForUser(user, udata);
 });
