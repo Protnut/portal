@@ -368,7 +368,15 @@ window.confirmStep = async function(projectId, stepKey){
 
   const confirmTa = document.getElementById(`confirm-note-${projectId}-${stepKey}`);
   const confirmNote = confirmTa ? (confirmTa.value || '') : ((d.steps && d.steps[stepKey] && d.steps[stepKey].confirmNote) || '');
-
+  // ✅ 特殊規則：DFM 必須有附件才能完成
+  if (stepKey === 'dfm') {
+    const hasAttachment = (d.attachments || []).some(a => a.step === 'dfm');
+    if (!hasAttachment) {
+      alert('請先由管理者上傳 DFM 附件，才能完成此流程');
+      return;
+    }
+  }
+    
   // update
   const updateObj = {};
   updateObj[`steps.${stepKey}.status`] = 'completed';
