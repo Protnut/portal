@@ -126,41 +126,50 @@ function renderWorkflowTable(projectId, projectData){
     </thead><tbody>`;
 
   WORKFLOW.forEach(stepKey => {
-    const wf = WORKFLOW_DETAIL[stepKey] || { label: stepKey, executor: 'customer', confirmer: 'admin' };
-    const step = steps[stepKey] || { status: 'not_started', executorNote: '', confirmNote:'', executorLocked:false };
+    const wf = WORKFLOW_DETAIL[stepKey] || {label: stepKey, role: 'customer'};
+    const step = steps[stepKey] || { status: 'not_started', executorNote: '', confirmNote: '', confirmedBy: '', confirmedAt: null };
+    const filesForStep = (attachments || []).filter(a => a.step === stepKey);
 
-    // 判斷誰是執行方 / 確認方（以 executor/confirmer 欄位）
-    const executorRole = wf.executor || 'customer';
-    const confirmerRole = wf.confirmer || (executorRole === 'customer' ? 'admin' : 'customer');
-
-    const currentUserIsExecutor = (executorRole === 'customer' && auth.currentUser && projectData.owner === auth.currentUser.uid)
-                                  || (executorRole === 'admin' && isAdminUser());
-    const currentUserIsConfirmer = (confirmerRole === 'customer' && auth.currentUser && projectData.owner === auth.currentUser.uid)
-                                   || (confirmerRole === 'admin' && isAdminUser());
-
+    // 權限判斷
+    const executorIsCustomer = wf.role === 'customer';
+    const currentUserIsExecutor = (executorIsCustomer && auth.currentUser && projectData.owner === auth.currentUser.uid)
+                                  || (!executorIsCustomer && isAdminUser());
+    const confirmRoleIsAdmin = !executorIsCustomer; // 如果執行者是客戶 => 確認方為公司(admin)，反之亦然
+    const currentUserIsConfirmer = (confirmRoleIsAdmin && isAdminUser())
+                                   || (!confirmRoleIsAdmin && auth.currentUser && projectData.owner === auth.currentUser.uid);
     const canEdit = currentUserIsExecutor && step.status !== 'completed';
     const canConfirm = currentUserIsConfirmer && step.status === 'in_progress';
 
-    // 附件欄：所有 step 都顯示上傳 input（當前 user 為執行方且 step 未完成）
-    let filesHtml = (attachments||[]).filter(a=>a.step===stepKey).map(a => `...`).join('') || '-';
+    // 當前流程顯示（若 projectData.status === stepKey 則加標示）
+    const isCurrent = projectData.status === stepKey;
+    const currentBadge = isCurrent ? ' <span class="badge bg-primary">目前</span>' : '';
+
+    // 附件欄
+    let filesHtml = filesForStep.length ? filesForStep.map(f=>{
+      const delBtn = canEdit ? ` <button class="btn btn-sm btn-danger" onclick="deleteAttachment('${projectId}','${f.storagePath}')">刪除</button>` : '';
+      return `<div>${f.name} <a href="${f.downloadUrl}" target="_blank">下載</a>${delBtn}</div>`;
+    }).join('') : '-';
+
     if(canEdit){
+      // 允許執行方上傳
       filesHtml += `<div class="mt-1">
         <input type="file" id="step-file-${projectId}-${stepKey}" onchange="uploadStepAttachment('${projectId}','${stepKey}', this)" />
       </div>`;
     }
 
     // 執行方備註欄
-    const executorNoteHtml = (canEdit && !step.executorLocked)
+    const executorNoteHtml = canEdit
       ? `<textarea id="step-note-${projectId}-${stepKey}" class="form-control" rows="2">${(step.executorNote||'')}</textarea>
          <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存執行方備註</button>`
       : `<div>${(step.executorNote||'')}</div>`;
 
-    // 確認方顯示名稱（admin -> PROTNUT；customer -> domain）
-    const confirmerLabel = (confirmerRole === 'admin') ? 'PROTNUT' : getDomainFromEmail(projectData.ownerEmail);
+    // 確認方資訊
+    const confirmerLabel = confirmRoleIsAdmin ? 'PROTNUT' : getDomainFromEmail(projectData.ownerEmail);
 
-    // 確認方備註：**移除儲存按鈕**，只顯示 textarea（可編輯的條件：目前使用者為確認方且 step 未完成）
-    const confirmNoteHtml = (canConfirm || (currentUserIsConfirmer && step.status !== 'completed'))
-      ? `<textarea id="confirm-note-${projectId}-${stepKey}" class="form-control" rows="2">${(step.confirmNote||'')}</textarea>`
+    // 確認備註欄（只有確認方 / 管理員在 step 未完成時可編輯）
+    const confirmNoteHtml = (currentUserIsConfirmer && step.status !== 'completed')
+      ? `<textarea id="confirm-note-${projectId}-${stepKey}" class="form-control" rows="2">${(step.confirmNote||'')}</textarea>
+         <button class="btn btn-sm btn-secondary mt-1" onclick="saveConfirmNote('${projectId}','${stepKey}')">儲存確認備註</button>`
       : `<div>${(step.confirmNote||'')}</div>`;
 
     // 確認完成欄（按鈕或顯示完成者）
@@ -225,16 +234,6 @@ window.uploadStepAttachment = async function(projectId, stepKey, inputEl){
       attachments: firebase.firestore.FieldValue.arrayUnion(attachObj),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-
-    // 可依 stepKey 做特殊行為：例如 uploaded/po_received 可自動切換 status（如果需要）
-    if(stepKey === 'po_received'){
-      await db.collection('projects').doc(projectId).update({
-        status: 'po_received',
-        history: firebase.firestore.FieldValue.arrayUnion({ status:'po_received', by: auth.currentUser.email, ts: Date.now(), note:'客戶下單上傳檔案' }),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }
-
     alert('上傳成功');
     viewProject(projectId);
   }catch(e){ alert('上傳失敗: ' + e.message); }
@@ -253,14 +252,11 @@ window.deleteAttachment = async function(projectId, storagePath){
   // 檢查是否允許刪除（必須是該 step 執行方，且 step 未完成，或管理者）
   const stepKey = attach.step;
   const step = (d.steps && d.steps[stepKey]) || { status: 'not_started' };
-  // 取 attach.step -> 找 WF 設定
-  const wf = WORKFLOW_DETAIL[attach.step] || { executor: 'customer' };
-  const executorRole = wf.executor || 'customer';
-  const currentUserIsExecutor = (executorRole === 'customer' && auth.currentUser && d.owner === auth.currentUser.uid)
-                              || (executorRole === 'admin' && isAdminUser());
-  const stepObj = (d.steps && d.steps[attach.step]) || {};
-  if(!currentUserIsExecutor || stepObj.status === 'completed'){
-    alert('您無權刪除此附件或該步驟已完成');
+  const wf = WORKFLOW_DETAIL[stepKey];
+  const executorIsCustomer = wf.role === 'customer';
+  const currentUserIsExecutor = (executorIsCustomer && auth.currentUser.uid === d.owner) || isAdminUser();
+  if(!currentUserIsExecutor || step.status === 'completed'){
+    alert('您無權刪除此附件或該步驟已鎖定');
     return;
   }
 
@@ -279,34 +275,23 @@ window.deleteAttachment = async function(projectId, storagePath){
 window.saveExecutorNote = async function(projectId, stepKey){
   const ta = document.getElementById(`step-note-${projectId}-${stepKey}`);
   if(!ta) return;
-  const note = (ta.value || '').trim();
-
-  // 若為空字串，不做任何事（沒有 alert）
-  if(note === '') return;
-
+  const note = ta.value || '';
+  // 權限檢查：只有執行方並且 step 未完成
   const docRef = db.collection('projects').doc(projectId);
   const snap = await docRef.get();
   if(!snap.exists) return;
   const d = snap.data();
-  const wf = WORKFLOW_DETAIL[stepKey] || { executor: 'customer' };
-  const executorRole = wf.executor || 'customer';
-  const currentUserIsExecutor = (executorRole === 'customer' && auth.currentUser && d.owner === auth.currentUser.uid)
-                                || (executorRole === 'admin' && isAdminUser());
-
-  // 權限/狀態檢查
   const step = (d.steps && d.steps[stepKey]) || {};
-  if(!currentUserIsExecutor || step.status === 'completed' || step.executorLocked){
-    alert('無權編輯或此步驟已被鎖定');
-    return;
-  }
+  const wf = WORKFLOW_DETAIL[stepKey];
+  const executorIsCustomer = wf.role === 'customer';
+  const currentUserIsExecutor = (executorIsCustomer && auth.currentUser.uid === d.owner) || isAdminUser();
+  if(!currentUserIsExecutor || step.status === 'completed'){ alert('無權編輯備註或步驟已鎖定'); return; }
 
   const updateObj = {};
   updateObj[`steps.${stepKey}.executorNote`] = note;
-  updateObj[`steps.${stepKey}.executorLocked`] = true;
   updateObj.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-
   await docRef.update(updateObj);
-  alert('執行方備註已儲存並鎖定（不可再修改）');
+  alert('備註已儲存');
   viewProject(projectId);
 };
 
@@ -345,16 +330,20 @@ window.confirmStep = async function(projectId, stepKey){
   const snap = await docRef.get(); if(!snap.exists) return;
   const d = snap.data();
 
+  const stepIndex = WORKFLOW.indexOf(stepKey);
+  if(stepIndex === -1) return;
+
   const wf = WORKFLOW_DETAIL[stepKey] || {};
-  const confirmerRole = wf.confirmer || (wf.executor === 'customer' ? 'admin' : 'customer');
-  const currentUserIsConfirmer = (confirmerRole === 'customer' && auth.currentUser && d.owner === auth.currentUser.uid)
-                                 || (confirmerRole === 'admin' && isAdminUser());
-  if(!currentUserIsConfirmer && !isAdminUser()){ alert('您不是此步驟的確認方'); return; }
+  const executorIsCustomer = wf.role === 'customer';
+  const confirmRoleIsAdmin = !executorIsCustomer;
+  const currentUserIsConfirmer = (confirmRoleIsAdmin && isAdminUser()) || (!confirmRoleIsAdmin && auth.currentUser && d.owner === auth.currentUser.uid);
+  if(!currentUserIsConfirmer && !isAdminUser()){ alert('您不是確認方，無法確認此步驟'); return; }
 
+  // 讀取確認備註（若有 textarea）
   const confirmTa = document.getElementById(`confirm-note-${projectId}-${stepKey}`);
-  const confirmNote = confirmTa ? (confirmTa.value || '') : ((d.steps && d.steps[stepKey] && d.steps[stepKey].confirmNote) || '');
+  const confirmNote = confirmTa ? confirmTa.value : ((d.steps && d.steps[stepKey] && d.steps[stepKey].confirmNote) || '');
 
-  // update
+  const next = WORKFLOW[stepIndex + 1];
   const updateObj = {};
   updateObj[`steps.${stepKey}.status`] = 'completed';
   updateObj[`steps.${stepKey}.confirmedBy`] = auth.currentUser.email;
@@ -363,12 +352,8 @@ window.confirmStep = async function(projectId, stepKey){
   updateObj.history = firebase.firestore.FieldValue.arrayUnion({
     status: stepKey, by: auth.currentUser.email, ts: Date.now(), note: '確認完成' + (confirmNote ? (' — ' + confirmNote) : '')
   });
-
-  // 將 project status 進到下一個 step（若有）
-  const idx = WORKFLOW.indexOf(stepKey);
-  if(idx !== -1 && idx < WORKFLOW.length - 1){
-    const next = WORKFLOW[idx + 1];
-    updateObj.status = next;
+  if(next){
+    updateObj.status = next;  // project level current step
     updateObj[`steps.${next}.status`] = 'in_progress';
   } else {
     updateObj.status = 'completed_all';
@@ -377,12 +362,17 @@ window.confirmStep = async function(projectId, stepKey){
 
   await docRef.update(updateObj);
 
-  // optional: 發通知
   await db.collection('notifications').add({
-    type: 'task_completed', projectId, completed: stepKey, by: auth.currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'unread'
+    type: 'task_completed',
+    projectId: projectId,
+    completed: stepKey,
+    next: next,
+    by: auth.currentUser.email,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    status: 'unread'
   });
 
-  alert('已確認完成');
+  alert('已確認，狀態已更新');
   viewProject(projectId);
 };
 
@@ -676,14 +666,14 @@ async function loadMyProjects() {
 }
 }
 
-// --------- Replace WORKFLOW_DETAIL with explicit executor/confirmer ---------
+// 詳細任務定義（誰負責 / 顯示名稱）
 const WORKFLOW_DETAIL = {
-  uploaded:    { label: "客戶傳估價檔", executor: "customer", confirmer: "admin" },
-  dfm:         { label: "PN進行DFM",     executor: "admin",    confirmer: "customer" }, // <-- DFM 確認方改為 "註冊 mail domain"
-  quoted:      { label: "PN完成報價",     executor: "admin",    confirmer: "customer" },
-  po_received: { label: "客戶下單",       executor: "customer", confirmer: "admin" },    // <-- 下單的確認方改為 PROTNUT (admin)
-  prototyping: { label: "PN試樣",       executor: "admin",    confirmer: "admin" },
-  delivery:    { label: "交付產品與報告", executor: "admin",    confirmer: "customer" }
+  uploaded: { label: "客戶上傳估價檔", role: "customer" },
+  dfm: { label: "公司進行 DFM", role: "admin" },
+  quoted: { label: "公司完成報價", role: "admin" },
+  po_received: { label: "客戶上傳 PO", role: "customer" },
+  prototyping: { label: "公司打樣中", role: "admin" },
+  delivery: { label: "產品與檢驗報告交付", role: "admin" }
 };
 
 // ================ 顯示專案（含流程表） ===================
