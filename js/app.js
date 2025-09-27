@@ -804,13 +804,14 @@ window.uploadPO = async function(projectId){
     const url = await storageRef.getDownloadURL();
     await db.collection('projects').doc(projectId).update({
       attachments: firebase.firestore.FieldValue.arrayUnion({
-        name: f.name,
-        storagePath: path,
-        downloadUrl: url,
-        type: 'po',
-        uploadedBy: auth.currentUser.email,
-        uploadedAt: Date.now()
-      }),
+          name: f.name,
+          storagePath: path,
+          downloadUrl: url,
+          type: type,
+          step: (type === 'quotation' ? 'quoted' : 'dfm'),  // ⬅️ 加這行
+          uploadedBy: auth.currentUser.email,
+          uploadedAt: Date.now()
+        }),
       status: nextStatus('po_received'),
       history: firebase.firestore.FieldValue.arrayUnion({
         status: 'po_received',
