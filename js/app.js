@@ -175,10 +175,10 @@ function renderWorkflowTable(projectId, projectData){
            <textarea id="step-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2" maxlength="500">${escapeHtml(step.executorNote||'')}</textarea>
            <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存執行方備註</button>
          </div>`
-      : `<div class="remark-cell overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
-           <span class="remark-text" data-full="${safeFullExecutor}">${shortExecutor}</span>
-           ${(fullExecutor && fullExecutor.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
-         </div>`;
+      : `<div class="remark-cell" style="max-width: 200px; word-break: break-all;">
+          <span class="remark-text" data-full="${safeFullExecutor}">${shortExecutor}</span>
+          ${(fullExecutor && fullExecutor.length > 100) ? '<a class="toggle-remark">更多</a>' : ''}
+        </div>
 
     // 確認方顯示名稱（admin -> PROTNUT；customer -> domain）
     const confirmerLabel = (confirmerRole === 'admin') ? 'PROTNUT' : getDomainFromEmail(projectData.ownerEmail);
@@ -274,9 +274,11 @@ function setupRemarkToggle() {
       if (span.textContent === short) {
         span.textContent = full;
         link.textContent = '收起';
+        span.parentElement.style.maxHeight = 'none';  // 🔑 展開後移除限制
       } else {
         span.textContent = short;
         link.textContent = '更多';
+        span.parentElement.style.maxHeight = '100px'; // 🔑 收起再加回限制
       }
     };
 
@@ -827,7 +829,7 @@ window.viewProject = async function(projectId){
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
 
-    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.by||''} / ${timeFormatted}</li>`;
   });
   html += '</ul>';
 
@@ -981,7 +983,7 @@ window.adminViewProject = async function(pid){
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
     const byDomain = h.by ? getDomainFromEmail(h.by) : '';
-    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.by||''} / ${timeFormatted}</li>`;
   });
   html += '</ul>';
 
