@@ -1,4 +1,4 @@
-// /js/app.js - fixed version_0925
+// /js/app.js - fixed version_0929
 // 若 portal.html 還呼叫 validateFiles，這個 wrapper 會呼叫現有的 isDangerousFile 檢查
 window.validateFiles = function(input){
   const files = input.files || [];
@@ -104,7 +104,7 @@ function nextStatus(curr){
   return WORKFLOW[idx + 1];
 }
 
-// 替換整個 renderWorkflowTable 函式（放在 app.js 原來 renderWorkflowTable 的地方）
+// 替換整個 renderWorkflowTable 函式（調整欄位寬度）
 function renderWorkflowTable(projectId, projectData){
   const steps = projectData.steps || {};
   const attachments = projectData.attachments || [];
@@ -115,14 +115,14 @@ function renderWorkflowTable(projectId, projectData){
   let html = `<div class="table-responsive">
   <table class="table table-bordered" style="table-layout: fixed;"><thead>
     <tr>
-      <th>流程</th>
-      <th>state</th>
-      <th>執行方</th>
-      <th>附件 (報告, 參考文件….)</th>
-      <th>執行方備註</th>
-      <th>確認方</th>
-      <th>確認方備註</th>
-      <th>確認</th>
+      <th style="width: 8%;">流程</th>
+      <th style="width: 8%;">state</th>
+      <th style="width: 8%;">執行方</th>
+      <th style="width: 30%;">附件 (報告, 參考文件….)</th>
+      <th style="width: 18%;">執行方備註</th>
+      <th style="width: 8%;">確認方</th>
+      <th style="width: 18%;">確認方備註</th>
+      <th style="width: 10%;">確認</th>
     </tr>
     </thead><tbody>`;
 
@@ -174,11 +174,11 @@ function renderWorkflowTable(projectId, projectData){
     const shortExecutor = fullExecutor.length > 100 ? escapeHtml(fullExecutor.substring(0,100) + '...') : safeFullExecutor;
 
     const executorNoteHtml = (canEdit && !step.executorLocked)
-      ? `<div class="overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
+      ? `<div class="overflow-auto" style="max-height: 100px; word-break: break-all;">
            <textarea id="step-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2" maxlength="500">${escapeHtml(step.executorNote||'')}</textarea>
            <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存執行方備註</button>
          </div>`
-      : `<div class="remark-cell overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
+      : `<div class="remark-cell overflow-auto" style="max-height: 100px; word-break: break-all;">
            <span class="remark-text" data-full="${safeFullExecutor}">${shortExecutor}</span>
            ${(fullExecutor && fullExecutor.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
          </div>`;
@@ -192,10 +192,10 @@ function renderWorkflowTable(projectId, projectData){
     const shortConfirm = fullConfirm.length > 100 ? escapeHtml(fullConfirm.substring(0,100) + '...') : safeFullConfirm;
 
     const confirmNoteHtml = (currentUserIsConfirmer && step.status !== 'completed')
-      ? `<div class="overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
+      ? `<div class="overflow-auto" style="max-height: 100px; word-break: break-all;">
            <textarea id="confirm-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2" maxlength="500">${escapeHtml(step.confirmNote||'')}</textarea>
          </div>`
-      : `<div class="remark-cell overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
+      : `<div class="remark-cell overflow-auto" style="max-height: 100px; word-break: break-all;">
            <span class="remark-text" data-full="${safeFullConfirm}">${shortConfirm}</span>
            ${(fullConfirm && fullConfirm.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
          </div>`;
@@ -219,14 +219,14 @@ function renderWorkflowTable(projectId, projectData){
     }
 
     html += `<tr>
-      <td>${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
-      <td>${STATUS_LABEL[step.status] || step.status}</td>
-      <td>${wf.executor === 'customer' ? getDomainFromEmail(projectData.ownerEmail) : 'PROTNUT'}</td>
-      <td style="width: 20%;">${filesHtml}</td>
-      <td style="width: 15%;">${executorNoteHtml}</td>
-      <td>${confirmerLabel}</td>
-      <td style="width: 15%;">${confirmNoteHtml}</td>
-      <td>${confirmCell}</td>
+      <td style="width: 8%;">${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
+      <td style="width: 8%;">${STATUS_LABEL[step.status] || step.status}</td>
+      <td style="width: 8%;">${wf.executor === 'customer' ? getDomainFromEmail(projectData.ownerEmail) : 'PROTNUT'}</td>
+      <td style="width: 30%;">${filesHtml}</td>
+      <td style="width: 18%;">${executorNoteHtml}</td>
+      <td style="width: 8%;">${confirmerLabel}</td>
+      <td style="width: 18%;">${confirmNoteHtml}</td>
+      <td style="width: 10%;">${confirmCell}</td>
     </tr>`;
   });
 
@@ -297,7 +297,6 @@ function escapeHtml(s){
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
 }
-
 
 // 上傳 step 檔案 - 只允許執行方上傳
 window.uploadStepAttachment = async function(projectId, stepKey, inputEl){
@@ -504,7 +503,6 @@ window.confirmStep = async function(projectId, stepKey){
   viewProject(projectId);
 };
 
-
 window.adminOverrideStepPrompt = function(projectId){
   const step = prompt('輸入要修正的 step 名稱 (例如 uploaded, dfm, quoted, po_received, prototyping, delivery)');
   if(!step) return;
@@ -535,7 +533,6 @@ window.adminOverrideStep = async function(projectId, stepKey, newStatus){
   alert('管理員已更新步驟狀態');
   viewProject(projectId);
 };
-
 
 // ================ Signup ===================
 if(btnSignup){
@@ -680,12 +677,10 @@ async function setupUIForUser(user, udata) {
   }
 
   if(btnNewProject) btnNewProject.onclick = ()=> show(newProjectArea);
-// ✅ 登入後自動載入「我的專案」
      loadMyProjects();
      show(projectsList);
 
     if (btnCreateProject) {
-      // 假設你已經在 setupUIForUser 之中有 btnCreateProject 綁定
         btnCreateProject.onclick = async () => {
           const title = (projTitle.value || '').trim();
           const files = document.getElementById('proj-files').files;
@@ -698,7 +693,7 @@ async function setupUIForUser(user, udata) {
               stepsInit[s] = {
               status: s === 'uploaded' ? 'in_progress' : 'not_started',
               executorNote: '',
-              confirmNote: '',         // 新增：確認方的備註（可於確認前編輯）
+              confirmNote: '',
               confirmedBy: '',
               confirmedAt: null
             };
@@ -708,9 +703,9 @@ async function setupUIForUser(user, udata) {
               owner: auth.currentUser.uid,
               ownerEmail: auth.currentUser.email,
               title: title,
-              status: 'uploaded',  // project level status: current active step
+              status: 'uploaded',
               steps: stepsInit,
-              attachments: [], // 會在下方上傳後填入
+              attachments: [],
               history: [{ status: 'uploaded', by: auth.currentUser.email, ts: Date.now(), note: '客戶上傳估價檔' }],
               createdAt: firebase.firestore.FieldValue.serverTimestamp(),
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -730,13 +725,12 @@ async function setupUIForUser(user, udata) {
                 storagePath: filePath,
                 downloadUrl: url,
                 type: 'estimate-file',
-                step: 'uploaded',        // 關聯到 'uploaded' step
+                step: 'uploaded',
                 uploadedBy: auth.currentUser.email,
                 uploadedAt: Date.now()
               });
             }
 
-            // 更新 attachments 到 project 中（不自動 advance）
             await pRef.update({
               attachments: attachments,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -789,7 +783,7 @@ async function loadMyProjects() {
     html += '</tbody></table>';
     projectsContainer.innerHTML = html;
   } catch (e) {
-  console.error('載入專案失敗:', e.message, e.code, e);  // 詳細錯誤日誌
+  console.error('載入專案失敗:', e.message, e.code, e);
   let errorMsg = '載入失敗，請檢查網路或權限';
   if (e.code === 'permission-denied') {
     errorMsg = '權限不足，請確認規則設定';
@@ -803,9 +797,9 @@ async function loadMyProjects() {
 // --------- Replace WORKFLOW_DETAIL with explicit executor/confirmer ---------
 const WORKFLOW_DETAIL = {
   uploaded:    { label: "客戶傳估價檔", executor: "customer", confirmer: "admin" },
-  dfm:         { label: "PN進行DFM",     executor: "admin",    confirmer: "customer" }, // <-- DFM 確認方改為 "註冊 mail domain"
+  dfm:         { label: "PN進行DFM",     executor: "admin",    confirmer: "customer" },
   quoted:      { label: "PN完成報價",     executor: "admin",    confirmer: "customer" },
-  po_received: { label: "客戶下單",       executor: "customer", confirmer: "admin" },    // <-- 下單的確認方改為 PROTNUT (admin)
+  po_received: { label: "客戶下單",       executor: "customer", confirmer: "admin" },
   prototyping: { label: "PN試樣",       executor: "admin",    confirmer: "admin" },
   delivery:    { label: "交付產品與報告", executor: "admin",    confirmer: "customer" }
 };
@@ -815,7 +809,6 @@ window.viewProject = async function(projectId){
   const snap = await db.collection('projects').doc(projectId).get();
   if(!snap.exists){ alert('找不到案件'); return; }
   const d = snap.data();
-  // 移除 title 後方的狀態顯示（依需求：不要顯示 "專案名稱 — 任務名稱"）
   let html = `<h4>${d.title}</h4>`;
 
   html += renderWorkflowTable(projectId, d, d.steps || {}, d.attachments || []);
@@ -837,10 +830,8 @@ window.viewProject = async function(projectId){
 
   document.getElementById('projects-container').innerHTML = html;
     show(projectsList);
-    // 新增：綁定「更多/收起」功能
     setupRemarkToggle();
 };
-
 
 // ================ 任務完成 ===================
 window.completeTask = async function(pid, status){
@@ -889,8 +880,8 @@ window.uploadPO = async function(projectId){
           name: f.name,
           storagePath: path,
           downloadUrl: url,
-          type: type,
-          step: (type === 'quotation' ? 'quoted' : 'dfm'),  // ⬅️ 加這行
+          type: 'po-file',
+          step: 'po_received',
           uploadedBy: auth.currentUser.email,
           uploadedAt: Date.now()
         }),
@@ -973,7 +964,6 @@ window.adminViewProject = async function(pid){
   if(!doc.exists){ alert('找不到'); return; }
   const d = doc.data();
 
-  // ✅ 改成用 renderWorkflowTable
   let html = `<h4>${d.title}</h4>`;
   html += renderWorkflowTable(pid, d, d.steps || {}, d.attachments || []);
 
@@ -994,7 +984,6 @@ window.adminViewProject = async function(pid){
   document.getElementById('admin-projects').innerHTML = html;
     setupRemarkToggle();
 };
-
 
 window.adminUpload = async function(pid){
   const f = document.getElementById('admin-file').files[0];
@@ -1017,7 +1006,7 @@ window.adminUpload = async function(pid){
   };
   if(type === 'quotation'){
       updateObj[`steps.quoted.status`] = 'in_progress';
-      if(d.status !== 'quoted'){   // 避免覆蓋客戶已推進的狀態
+      if(d.status !== 'quoted'){
         updateObj.status = 'quoted';
       }
     }

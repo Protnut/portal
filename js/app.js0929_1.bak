@@ -1,4 +1,4 @@
-// /js/app.js - fixed version_0925
+// /js/app.js - fixed version_0929
 // 若 portal.html 還呼叫 validateFiles，這個 wrapper 會呼叫現有的 isDangerousFile 檢查
 window.validateFiles = function(input){
   const files = input.files || [];
@@ -130,7 +130,7 @@ function renderWorkflowTable(projectId, projectData){
     const wf = WORKFLOW_DETAIL[stepKey] || { label: stepKey, executor: 'customer', confirmer: 'admin' };
     const step = steps[stepKey] || { status: 'not_started', executorNote: '', confirmNote:'', executorLocked:false };
     const currentBadge = (projectData.status === stepKey) 
-      ? '<span class="badge bg-info ms-1">目前</span>' 
+      ? '<div><span class="badge bg-info">目前</span></div>' 
       : '';
       
     // 判斷誰是執行方 / 確認方（以 executor/confirmer 欄位）
@@ -157,7 +157,10 @@ function renderWorkflowTable(projectId, projectData){
           <a href="${a.downloadUrl}" target="_blank">${a.name}</a> ${delBtn}
         </div>`;
       })
-      .join('') || '-';
+      .join('');
+
+    // 修復附件過多檔名錯亂：包在 overflow-auto div 中，無論客戶或 admin
+    filesHtml = filesHtml ? `<div class="overflow-auto" style="max-height: 100px; word-break: break-all;">${filesHtml}</div>` : '-';
       
     if(canEdit){
       filesHtml += `<div class="mt-1">
@@ -817,7 +820,7 @@ window.viewProject = async function(projectId){
 
   html += renderWorkflowTable(projectId, d, d.steps || {}, d.attachments || []);
 
-  // 歷史紀錄
+  // 歷史紀錄（修復確認方備註完整顯示破壞版面：縮短 note，如果超過 20 字顯示 ...）
   html += '<h5>歷史紀錄</h5><ul>';
   (d.history||[]).forEach(h=>{
     const time = h.ts ? new Date(h.ts).toLocaleString() : '';
@@ -826,8 +829,9 @@ window.viewProject = async function(projectId){
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
+    const noteShort = (h.note || '').length > 20 ? (h.note.substring(0, 20) + '...') : (h.note || '');
 
-    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${noteShort} / ${timeFormatted}</li>`;
   });
   html += '</ul>';
 
@@ -981,7 +985,9 @@ window.adminViewProject = async function(pid){
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
     const byDomain = h.by ? getDomainFromEmail(h.by) : '';
-    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
+    const noteShort = (h.note || '').length > 20 ? (h.note.substring(0, 20) + '...') : (h.note || '');
+
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${noteShort} / ${timeFormatted}</li>`;
   });
   html += '</ul>';
 
