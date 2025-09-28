@@ -170,9 +170,11 @@ function renderWorkflowTable(projectId, projectData){
     const shortExecutor = fullExecutor.length > 100 ? escapeHtml(fullExecutor.substring(0,100) + '...') : safeFullExecutor;
 
     const executorNoteHtml = (canEdit && !step.executorLocked)
-      ? `<textarea id="step-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2">${escapeHtml(step.executorNote||'')}</textarea>
-         <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存執行方備註</button>`
-      : `<div class="remark-cell">
+      ? `<div class="overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
+           <textarea id="step-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2" maxlength="500">${escapeHtml(step.executorNote||'')}</textarea>
+           <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存執行方備註</button>
+         </div>`
+      : `<div class="remark-cell overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
            <span class="remark-text" data-full="${safeFullExecutor}">${shortExecutor}</span>
            ${(fullExecutor && fullExecutor.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
          </div>`;
@@ -186,8 +188,10 @@ function renderWorkflowTable(projectId, projectData){
     const shortConfirm = fullConfirm.length > 100 ? escapeHtml(fullConfirm.substring(0,100) + '...') : safeFullConfirm;
 
     const confirmNoteHtml = (currentUserIsConfirmer && step.status !== 'completed')
-      ? `<textarea id="confirm-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2">${escapeHtml(step.confirmNote||'')}</textarea>`
-      : `<div class="remark-cell">
+      ? `<div class="overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
+           <textarea id="confirm-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2" maxlength="500">${escapeHtml(step.confirmNote||'')}</textarea>
+         </div>`
+      : `<div class="remark-cell overflow-auto" style="max-height: 100px; max-width: 200px; word-break: break-all;">
            <span class="remark-text" data-full="${safeFullConfirm}">${shortConfirm}</span>
            ${(fullConfirm && fullConfirm.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
          </div>`;
@@ -224,14 +228,20 @@ function renderWorkflowTable(projectId, projectData){
 
   html += '</tbody></table>';
 
-  // 管理者 override
-  if(isAdminUser()){
-    html += `<div class="mt-2"><strong>管理員操作</strong>：
-      <button class="btn btn-sm btn-warning" onclick="adminOverrideStepPrompt('${projectId}')">修正步驟 / 強制完成</button>
-    </div>`;
-  }
+    // 管理者 override
+    if(isAdminUser()){
+      html += `<div class="mt-2"><strong>管理員操作</strong>：
+        <button class="btn btn-sm btn-warning" onclick="adminOverrideStepPrompt('${projectId}')">修正步驟 / 強制完成</button>
+      </div>`;
+    }
 
-  return html;
+    // 初始化所有 tooltip（Bootstrap 5 需要 JS 啟用）
+    setTimeout(() => {
+      const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+      const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+    }, 0);
+
+    return html;
 }
 
 // 放置位置：renderWorkflowTable() 結束之後
