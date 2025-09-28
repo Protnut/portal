@@ -112,18 +112,18 @@ function renderWorkflowTable(projectId, projectData){
   // 狀態中文顯示
   const STATUS_LABEL = { not_started: 'unstarted', in_progress: 'OnGoing', completed: 'Finished' };
 
-  let html = `<table class="table table-bordered"><thead>
-    <tr>
-      <th>流程</th>
-      <th>state</th>
-      <th>執行方</th>
-      <th>附件 (報告, 參考文件….)</th>
-      <th>執行方備註</th>
-      <th>確認方</th>
-      <th>確認方備註</th>
-      <th>確認</th>
-    </tr>
-    </thead><tbody>`;
+  let html = `<table class="table table-bordered" style="table-layout: fixed;"><thead>
+  <tr>
+    <th>流程</th>
+    <th>state</th>
+    <th>執行方</th>
+    <th>附件 (報告, 參考文件….)</th>
+    <th>執行方備註</th>
+    <th>確認方</th>
+    <th>確認方備註</th>
+    <th>確認</th>
+  </tr>
+  </thead><tbody>`;
 
   WORKFLOW.forEach(stepKey => {
     const wf = WORKFLOW_DETAIL[stepKey] || { label: stepKey, executor: 'customer', confirmer: 'admin' };
