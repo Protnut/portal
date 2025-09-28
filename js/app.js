@@ -157,7 +157,10 @@ function renderWorkflowTable(projectId, projectData){
           <a href="${a.downloadUrl}" target="_blank">${a.name}</a> ${delBtn}
         </div>`;
       })
-      .join('') || '-';
+      .join('');
+
+    // 修復附件過多檔名錯亂：包在 overflow-auto div 中，無論客戶或 admin
+    filesHtml = filesHtml ? `<div class="overflow-auto" style="max-height: 100px; word-break: break-all;">${filesHtml}</div>` : '-';
       
     if(canEdit){
       filesHtml += `<div class="mt-1">
@@ -817,7 +820,7 @@ window.viewProject = async function(projectId){
 
   html += renderWorkflowTable(projectId, d, d.steps || {}, d.attachments || []);
 
-  // 歷史紀錄
+  // 歷史紀錄（修復確認方備註完整顯示破壞版面：縮短 note，如果超過 100 字顯示 ...）
   html += '<h5>歷史紀錄</h5><ul>';
   (d.history||[]).forEach(h=>{
     const time = h.ts ? new Date(h.ts).toLocaleString() : '';
@@ -826,8 +829,9 @@ window.viewProject = async function(projectId){
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
+    const noteShort = (h.note || '').length > 100 ? (h.note.substring(0, 100) + '...') : (h.note || '');
 
-    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${noteShort} / ${timeFormatted}</li>`;
   });
   html += '</ul>';
 
@@ -981,7 +985,9 @@ window.adminViewProject = async function(pid){
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
     const byDomain = h.by ? getDomainFromEmail(h.by) : '';
-    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${h.note||''} / ${timeFormatted}</li>`;
+    const noteShort = (h.note || '').length > 100 ? (h.note.substring(0, 100) + '...') : (h.note || '');
+
+    html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${noteShort} / ${timeFormatted}</li>`;
   });
   html += '</ul>';
 
