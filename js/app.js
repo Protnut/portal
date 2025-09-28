@@ -165,18 +165,32 @@ function renderWorkflowTable(projectId, projectData){
     }
 
     // 執行方備註欄
+    const fullExecutor = step.executorNote || '';
+    const safeFullExecutor = escapeHtml(fullExecutor);
+    const shortExecutor = fullExecutor.length > 100 ? escapeHtml(fullExecutor.substring(0,100) + '...') : safeFullExecutor;
+
     const executorNoteHtml = (canEdit && !step.executorLocked)
-      ? `<textarea id="step-note-${projectId}-${stepKey}" class="form-control" rows="2">${(step.executorNote||'')}</textarea>
+      ? `<textarea id="step-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2">${escapeHtml(step.executorNote||'')}</textarea>
          <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存執行方備註</button>`
-      : `<div>${(step.executorNote||'')}</div>`;
+      : `<div class="remark-cell">
+           <span class="remark-text" data-full="${safeFullExecutor}">${shortExecutor}</span>
+           ${(fullExecutor && fullExecutor.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
+         </div>`;
 
     // 確認方顯示名稱（admin -> PROTNUT；customer -> domain）
     const confirmerLabel = (confirmerRole === 'admin') ? 'PROTNUT' : getDomainFromEmail(projectData.ownerEmail);
 
     // 確認方備註：**移除儲存按鈕**，只顯示 textarea（可編輯的條件：目前使用者為確認方且 step 未完成）
+    const fullConfirm = step.confirmNote || '';
+    const safeFullConfirm = escapeHtml(fullConfirm);
+    const shortConfirm = fullConfirm.length > 100 ? escapeHtml(fullConfirm.substring(0,100) + '...') : safeFullConfirm;
+
     const confirmNoteHtml = (currentUserIsConfirmer && step.status !== 'completed')
-      ? `<textarea id="confirm-note-${projectId}-${stepKey}" class="form-control" rows="2">${(step.confirmNote||'')}</textarea>`
-      : `<div>${(step.confirmNote||'')}</div>`;
+      ? `<textarea id="confirm-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2">${escapeHtml(step.confirmNote||'')}</textarea>`
+      : `<div class="remark-cell">
+           <span class="remark-text" data-full="${safeFullConfirm}">${shortConfirm}</span>
+           ${(fullConfirm && fullConfirm.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
+         </div>`;
 
     // 確認完成欄（按鈕或顯示完成者）
     let confirmCell = '';
@@ -219,6 +233,57 @@ function renderWorkflowTable(projectId, projectData){
 
   return html;
 }
+
+// 放置位置：renderWorkflowTable() 結束之後
+function setupRemarkToggle() {
+  // 找到所有 .toggle-remark，並確保不會重複綁定 handler
+  document.querySelectorAll('.toggle-remark').forEach(link => {
+    // 若先前綁過 handler，先移除（避免重複觸發）
+    if (link._handler) link.removeEventListener('click', link._handler);
+
+    const span = link.previousElementSibling;
+    if (!span) return;
+
+    const full = span.getAttribute('data-full') || '';
+    const short = (full.length > 100) ? (full.substring(0,100) + '...') : full;
+
+    // 初始化顯示（若長度超過 100，預設顯示短版）
+    if (full.length > 100) {
+      span.textContent = short;
+      link.textContent = '更多';
+      link.style.display = ''; // 確保可見
+    } else {
+      // 若內容短，不需要「更多」按鈕
+      link.style.display = 'none';
+      span.textContent = full;
+    }
+
+    const handler = function(e) {
+      e.preventDefault();
+      if (span.textContent === short) {
+        span.textContent = full;
+        link.textContent = '收起';
+      } else {
+        span.textContent = short;
+        link.textContent = '更多';
+      }
+    };
+
+    link._handler = handler; // 存起來以便下次移除
+    link.addEventListener('click', handler);
+  });
+}
+
+// 放在 helper 區（renderWorkflowTable 之前或之後都可以）
+function escapeHtml(s){
+  return String(s || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 
 // 上傳 step 檔案 - 只允許執行方上傳
 window.uploadStepAttachment = async function(projectId, stepKey, inputEl){
@@ -756,7 +821,9 @@ window.viewProject = async function(projectId){
   html += '</ul>';
 
   document.getElementById('projects-container').innerHTML = html;
-  show(projectsList);
+    show(projectsList);
+    // 新增：綁定「更多/收起」功能
+    setupRemarkToggle();
 };
 
 
@@ -908,7 +975,9 @@ window.adminViewProject = async function(pid){
   html += '</ul>';
 
   document.getElementById('admin-projects').innerHTML = html;
+    setupRemarkToggle();
 };
+
 
 window.adminUpload = async function(pid){
   const f = document.getElementById('admin-file').files[0];
