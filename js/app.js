@@ -130,7 +130,7 @@ function renderWorkflowTable(projectId, projectData){
     const wf = WORKFLOW_DETAIL[stepKey] || { label: stepKey, executor: 'customer', confirmer: 'admin' };
     const step = steps[stepKey] || { status: 'not_started', executorNote: '', confirmNote:'', executorLocked:false };
     const currentBadge = (projectData.status === stepKey) 
-      ? '<span class="badge bg-info ms-1">目前</span>' 
+      ? '<div><span class="badge bg-info">目前</span></div>' 
       : '';
       
     // 判斷誰是執行方 / 確認方（以 executor/confirmer 欄位）
