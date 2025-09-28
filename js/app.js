@@ -219,10 +219,10 @@ function renderWorkflowTable(projectId, projectData){
       <td>${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
       <td>${STATUS_LABEL[step.status] || step.status}</td>
       <td>${wf.executor === 'customer' ? getDomainFromEmail(projectData.ownerEmail) : 'PROTNUT'}</td>
-      <td style="width: 20%;">${filesHtml}</td>  // 參照管理者寬度，附件欄 20%
-      <td style="width: 15%;">${executorNoteHtml}</td>  // 備註欄 15%
+      <td style="width: 20%;">${filesHtml}</td>
+      <td style="width: 15%;">${executorNoteHtml}</td>
       <td>${confirmerLabel}</td>
-      <td style="width: 15%;">${confirmNoteHtml}</td>  // 備註欄 15%
+      <td style="width: 15%;">${confirmNoteHtml}</td>
       <td>${confirmCell}</td>
     </tr>`;
   });
