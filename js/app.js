@@ -115,14 +115,14 @@ function renderWorkflowTable(projectId, projectData){
   let html = `<div class="table-responsive">
   <table class="table table-bordered" style="table-layout: fixed;"><thead>
     <tr>
-      <th style="width: 8%;">流程</th>
-      <th style="width: 8%;">state</th>
-      <th style="width: 8%;">執行方</th>
-      <th style="width: 30%;">附件 (報告, 參考文件….)</th>
-      <th style="width: 18%;">執行方備註</th>
-      <th style="width: 8%;">確認方</th>
-      <th style="width: 18%;">確認方備註</th>
-      <th style="width: 10%;">確認</th>
+      <th style="width: 6%;">流程</th>
+      <th style="width: 10%;">state</th>
+      <th style="width: 10%;">執行方</th>
+      <th style="width: 28%;">附件 (報告, 參考文件….)</th>
+      <th style="width: 14%;">執行方備註</th>
+      <th style="width: 10%;">確認方</th>
+      <th style="width: 14%;">確認方備註</th>
+      <th style="width: 8%;">確認</th>
     </tr>
     </thead><tbody>`;
 
