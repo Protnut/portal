@@ -112,18 +112,19 @@ function renderWorkflowTable(projectId, projectData){
   // 狀態中文顯示
   const STATUS_LABEL = { not_started: 'unstarted', in_progress: 'OnGoing', completed: 'Finished' };
 
-  let html = `<table class="table table-bordered"><thead>
-  <tr>
-    <th>流程</th>
-    <th>state</th>
-    <th>執行方</th>
-    <th>附件 (報告, 參考文件….)</th>
-    <th>執行方備註</th>
-    <th>確認方</th>
-    <th>確認方備註</th>
-    <th>確認</th>
-  </tr>
-  </thead><tbody>`;
+  let html = `<div class="table-responsive">
+  <table class="table table-bordered" style="table-layout: fixed;"><thead>
+    <tr>
+      <th>流程</th>
+      <th>state</th>
+      <th>執行方</th>
+      <th>附件 (報告, 參考文件….)</th>
+      <th>執行方備註</th>
+      <th>確認方</th>
+      <th>確認方備註</th>
+      <th>確認</th>
+    </tr>
+    </thead><tbody>`;
 
   WORKFLOW.forEach(stepKey => {
     const wf = WORKFLOW_DETAIL[stepKey] || { label: stepKey, executor: 'customer', confirmer: 'admin' };
@@ -218,15 +219,15 @@ function renderWorkflowTable(projectId, projectData){
       <td>${WORKFLOW_LABELS[stepKey] || wf.label || stepKey}${currentBadge}</td>
       <td>${STATUS_LABEL[step.status] || step.status}</td>
       <td>${wf.executor === 'customer' ? getDomainFromEmail(projectData.ownerEmail) : 'PROTNUT'}</td>
-      <td style="min-width:200px">${filesHtml}</td>
-      <td style="min-width:150px">${executorNoteHtml}</td>
+      <td style="width: 20%;">${filesHtml}</td>  // 參照管理者寬度，附件欄 20%
+      <td style="width: 15%;">${executorNoteHtml}</td>  // 備註欄 15%
       <td>${confirmerLabel}</td>
-      <td style="min-width:150px">${confirmNoteHtml}</td>
+      <td style="width: 15%;">${confirmNoteHtml}</td>  // 備註欄 15%
       <td>${confirmCell}</td>
     </tr>`;
   });
 
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';  // 關閉 table-responsive div
 
     // 管理者 override
     if(isAdminUser()){
