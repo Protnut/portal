@@ -820,7 +820,7 @@ window.viewProject = async function(projectId){
 
   html += renderWorkflowTable(projectId, d, d.steps || {}, d.attachments || []);
 
-  // 歷史紀錄（修復確認方備註完整顯示破壞版面：縮短 note，如果超過 100 字顯示 ...）
+  // 歷史紀錄（修復確認方備註完整顯示破壞版面：縮短 note，如果超過 20 字顯示 ...）
   html += '<h5>歷史紀錄</h5><ul>';
   (d.history||[]).forEach(h=>{
     const time = h.ts ? new Date(h.ts).toLocaleString() : '';
@@ -829,7 +829,7 @@ window.viewProject = async function(projectId){
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
-    const noteShort = (h.note || '').length > 100 ? (h.note.substring(0, 100) + '...') : (h.note || '');
+    const noteShort = (h.note || '').length > 20 ? (h.note.substring(0, 20) + '...') : (h.note || '');
 
     html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${noteShort} / ${timeFormatted}</li>`;
   });
@@ -985,7 +985,7 @@ window.adminViewProject = async function(pid){
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(/\//g,'/').replace(',','') : '';
     const byDomain = h.by ? getDomainFromEmail(h.by) : '';
-    const noteShort = (h.note || '').length > 100 ? (h.note.substring(0, 100) + '...') : (h.note || '');
+    const noteShort = (h.note || '').length > 20 ? (h.note.substring(0, 20) + '...') : (h.note || '');
 
     html += `<li>${WORKFLOW_LABELS[h.status] || h.status} / ${byDomain} / ${noteShort} / ${timeFormatted}</li>`;
   });
