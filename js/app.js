@@ -112,7 +112,7 @@ function renderWorkflowTable(projectId, projectData){
   // 狀態中文顯示
   const STATUS_LABEL = { not_started: 'unstarted', in_progress: 'OnGoing', completed: 'Finished' };
 
-  let html = `<table class="table table-bordered" style="table-layout: fixed;"><thead>
+  let html = `<table class="table table-bordered"><thead>
   <tr>
     <th>流程</th>
     <th>state</th>
