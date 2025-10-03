@@ -205,15 +205,7 @@ function renderWorkflowTable(projectId, projectData){
     if(canConfirm){
       confirmCell = `<button class="btn btn-success" onclick="confirmStep('${projectId}','${stepKey}')">確認完成</button>`;
     } else if(step.status === 'completed'){
-      const by = step.confirmedBy || '';
-      const at = step.confirmedAt ? new Date(step.confirmedAt).toLocaleString() : '';
-      const byDomain = by ? getDomainFromEmail(by) : '';
-      const atFormatted = step.confirmedAt ? new Date(step.confirmedAt).toLocaleString('zh-TW', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false
-      }).replace(/\//g,'/').replace(',','') : '';
-
-      confirmCell = `✅ 已完成 ${byDomain ? 'by ' + byDomain : ''} ${atFormatted ? '('+atFormatted+')' : ''}`;
+      confirmCell = `✅ 已完成`;  // 只保留 "✅ 已完成"，移除確認方與時間顯示（已記錄在歷史紀錄中）
     } else {
       confirmCell = '-';
     }
