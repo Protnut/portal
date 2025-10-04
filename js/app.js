@@ -179,14 +179,14 @@ function renderWorkflowTable(projectId, projectData){
            <button class="btn btn-sm btn-primary mt-1" onclick="saveExecutorNote('${projectId}','${stepKey}')">儲存執行方備註</button>
          </div>`
       : `<div class="remark-cell overflow-auto" style="max-height: 100px; word-break: break-all;">
-           <span class="remark-text" data-full="${safeFullExecutor}">${shortExecutor}</span>
-           ${(fullExecutor && fullExecutor.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
+           <span class="remark-text">${shortExecutor}</span>
+           ${(fullExecutor && fullExecutor.length > 100) ? `<a class="toggle-remark" onclick="showFullRemark('${safeFullExecutor}')">更多</a>` : ''}
          </div>`;
 
     // 確認方顯示名稱（admin -> PROTNUT；customer -> domain）
     const confirmerLabel = (confirmerRole === 'admin') ? 'PROTNUT' : getDomainFromEmail(projectData.ownerEmail);
 
-    // 確認方備註：**移除儲存按鈕**，只顯示 textarea（可編輯的條件：目前使用者為確認方且 step 未完成）
+    // 確認方備註
     const fullConfirm = step.confirmNote || '';
     const safeFullConfirm = escapeHtml(fullConfirm);
     const shortConfirm = fullConfirm.length > 100 ? escapeHtml(fullConfirm.substring(0,100) + '...') : safeFullConfirm;
@@ -196,8 +196,8 @@ function renderWorkflowTable(projectId, projectData){
            <textarea id="confirm-note-${projectId}-${stepKey}" class="form-control remark-cell" rows="2" maxlength="500">${escapeHtml(step.confirmNote||'')}</textarea>
          </div>`
       : `<div class="remark-cell overflow-auto" style="max-height: 100px; word-break: break-all;">
-           <span class="remark-text" data-full="${safeFullConfirm}">${shortConfirm}</span>
-           ${(fullConfirm && fullConfirm.length > 100) ? '<a class="toggle-remark">更多</a>' : '<a class="toggle-remark" style="display:none"></a>'}
+           <span class="remark-text">${shortConfirm}</span>
+           ${(fullConfirm && fullConfirm.length > 100) ? `<a class="toggle-remark" onclick="showFullRemark('${safeFullConfirm}')">更多</a>` : ''}
          </div>`;
 
     // 確認完成欄（按鈕或顯示完成者）
@@ -240,46 +240,6 @@ function renderWorkflowTable(projectId, projectData){
     return html;
 }
 
-// 放置位置：renderWorkflowTable() 結束之後
-function setupRemarkToggle() {
-  // 找到所有 .toggle-remark，並確保不會重複綁定 handler
-  document.querySelectorAll('.toggle-remark').forEach(link => {
-    // 若先前綁過 handler，先移除（避免重複觸發）
-    if (link._handler) link.removeEventListener('click', link._handler);
-
-    const span = link.previousElementSibling;
-    if (!span) return;
-
-    const full = span.getAttribute('data-full') || '';
-    const short = (full.length > 100) ? (full.substring(0,100) + '...') : full;
-
-    // 初始化顯示（若長度超過 100，預設顯示短版）
-    if (full.length > 100) {
-      span.textContent = short;
-      link.textContent = '更多';
-      link.style.display = ''; // 確保可見
-    } else {
-      // 若內容短，不需要「更多」按鈕
-      link.style.display = 'none';
-      span.textContent = full;
-    }
-
-    const handler = function(e) {
-      e.preventDefault();
-      if (span.textContent === short) {
-        span.textContent = full;
-        link.textContent = '收起';
-      } else {
-        span.textContent = short;
-        link.textContent = '更多';
-      }
-    };
-
-    link._handler = handler; // 存起來以便下次移除
-    link.addEventListener('click', handler);
-  });
-}
-
 // 放在 helper 區（renderWorkflowTable 之前或之後都可以）
 function escapeHtml(s){
   return String(s || '')
@@ -289,6 +249,36 @@ function escapeHtml(s){
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
 }
+
+// 顯示完整備註的彈出視窗
+window.showFullRemark = function(fullText) {
+  const modalHtml = `
+    <div class="modal fade" id="remarkModal" tabindex="-1" aria-labelledby="remarkModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="remarkModalLabel">完整備註內容</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <pre style="white-space: pre-wrap; word-break: break-word;">${fullText}</pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  // 動態插入 modal 到 body，並顯示
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  const modal = new bootstrap.Modal(document.getElementById('remarkModal'));
+  modal.show();
+  // 移除 modal 以避免重複
+  document.getElementById('remarkModal').addEventListener('hidden.bs.modal', function () {
+    this.remove();
+  });
+};
 
 // 上傳 step 檔案 - 只允許執行方上傳
 window.uploadStepAttachment = async function(projectId, stepKey, inputEl){
@@ -438,14 +428,15 @@ window.confirmStep = async function(projectId, stepKey){
 
   const confirmTa = document.getElementById(`confirm-note-${projectId}-${stepKey}`);
   const confirmNote = confirmTa ? (confirmTa.value || '') : ((d.steps && d.steps[stepKey] && d.steps[stepKey].confirmNote) || '');
-  // ✅ 特殊規則：DFM 必須有附件才能完成
-  if (stepKey === 'dfm') {
-    const hasAttachment = (d.attachments || []).some(a => a.step === 'dfm');
-    if (!hasAttachment) {
-      alert('請先由管理者上傳 DFM 附件，才能完成此流程');
-      return;
-    }
+  // ✅ 特殊規則：DFM, quoted, po_received, delivery 必須有附件才能完成（執行方需先上傳）
+const requireAttachmentSteps = ['dfm', 'quoted', 'po_received', 'delivery'];
+if (requireAttachmentSteps.includes(stepKey)) {
+  const hasAttachment = (d.attachments || []).some(a => a.step === stepKey);
+  if (!hasAttachment) {
+    alert('請先由執行方上傳附件，才能確認完成此流程');
+    return;
   }
+}
     
   // update
   const updateObj = {};
@@ -822,7 +813,6 @@ window.viewProject = async function(projectId){
 
   document.getElementById('projects-container').innerHTML = html;
     show(projectsList);
-    setupRemarkToggle();
 };
 
 // ================ 任務完成 ===================
@@ -974,7 +964,6 @@ window.adminViewProject = async function(pid){
   html += '</ul>';
 
   document.getElementById('admin-projects').innerHTML = html;
-    setupRemarkToggle();
 };
 
 window.adminUpload = async function(pid){
