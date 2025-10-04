@@ -669,101 +669,75 @@ async function setupUIForUser(user, udata) {
      show(projectsList);
 
     if (btnCreateProject) {
-      btnCreateProject.onclick = async () => {
-        const title = (projTitle.value || '').trim();
-        const files = document.getElementById('proj-files').files;
-        if (!title || files.length === 0) { 
-          alert('請填寫專案名稱並選擇至少一個檔案'); 
-          return; 
-        }
-        btnCreateProject.disabled = true;
-        try {
-          const uid = auth.currentUser.uid;
-          const attachments = [];
-          for (let file of files) {
-            if (isDangerousFile(file.name)) { 
-              alert('禁止上傳此類型檔案：' + file.name); 
-              continue; 
-            }
-            // 暫存檔案路徑，待專案ID生成後上傳
-            attachments.push({
-              file: file,
-              name: file.name,
-              type: 'estimate-file',
-              step: 'uploaded',
-              uploadedBy: auth.currentUser.email,
-              uploadedAt: Date.now()
-            });
-          }
-
-          if (attachments.length === 0) {
-            throw new Error('請至少上傳一個有效檔案（不允許的副檔名已被排除）');
-          }
-
-          // 建立 steps 初始狀態
-          const stepsInit = {};
-          WORKFLOW.forEach(s => {
-            stepsInit[s] = {
+        btnCreateProject.onclick = async () => {
+          const title = (projTitle.value || '').trim();
+          const files = document.getElementById('proj-files').files;
+          if (!title || files.length === 0) { alert('請填名稱並選檔案'); return; }
+          btnCreateProject.disabled = true;
+          try {
+            // 建立 steps 初始狀態
+            const stepsInit = {};
+            WORKFLOW.forEach(s => {
+              stepsInit[s] = {
               status: s === 'uploaded' ? 'in_progress' : 'not_started',
               executorNote: '',
               confirmNote: '',
               confirmedBy: '',
               confirmedAt: null
             };
-          });
-
-          // 創建專案
-          const pRef = await db.collection('projects').add({
-            owner: auth.currentUser.uid,
-            ownerEmail: auth.currentUser.email,
-            title: title,
-            status: 'uploaded',
-            steps: stepsInit,
-            attachments: [], // 先設為空，後續更新
-            history: [{ status: 'uploaded', by: auth.currentUser.email, ts: Date.now(), note: '客戶上傳估價檔' }],
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-
-          const projectId = pRef.id;
-          // 上傳檔案並更新 attachments
-          const finalAttachments = [];
-          for (let attach of attachments) {
-            const filePath = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${attach.name}`;
-            const storageRef = storage.ref().child(filePath);
-            await storageRef.put(attach.file);
-            const url = await storageRef.getDownloadURL();
-            finalAttachments.push({
-              name: attach.name,
-              storagePath: filePath,
-              downloadUrl: url,
-              type: attach.type,
-              step: attach.step,
-              uploadedBy: attach.uploadedBy,
-              uploadedAt: attach.uploadedAt
             });
+
+            const pRef = await db.collection('projects').add({
+              owner: auth.currentUser.uid,
+              ownerEmail: auth.currentUser.email,
+              title: title,
+              status: 'uploaded',
+              steps: stepsInit,
+              attachments: [],
+              history: [{ status: 'uploaded', by: auth.currentUser.email, ts: Date.now(), note: '客戶上傳估價檔' }],
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            const projectId = pRef.id;
+            const uid = auth.currentUser.uid;
+            const attachments = [];
+            for (let file of files) {
+              if(isDangerousFile(file.name)){ alert('禁止上傳此類型檔案：' + file.name); continue; }
+              const filePath = `user_uploads/${uid}/projects/${projectId}/${Date.now()}_${file.name}`;
+              const storageRef = storage.ref().child(filePath);
+              await storageRef.put(file);
+              const url = await storageRef.getDownloadURL();
+              attachments.push({
+                name: file.name,
+                storagePath: filePath,
+                downloadUrl: url,
+                type: 'estimate-file',
+                step: 'uploaded',
+                uploadedBy: auth.currentUser.email,
+                uploadedAt: Date.now()
+              });
+            }
+
+            await pRef.update({
+              attachments: attachments,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await db.collection('notifications').add({
+              type: 'new_project', projectId: projectId, ownerEmail: auth.currentUser.email,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'unread'
+            });
+
+            alert('專案建立成功');
+            projTitle.value = ''; document.getElementById('proj-files').value = '';
+            loadMyProjects();
+            show(projectsList);
+          } catch (e) {
+            alert('建立失敗: ' + e.message);
           }
-
-          await pRef.update({
-            attachments: finalAttachments,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-
-          await db.collection('notifications').add({
-            type: 'new_project', projectId: projectId, ownerEmail: auth.currentUser.email,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'unread'
-          });
-
-          alert('專案建立成功');
-          projTitle.value = ''; 
-          document.getElementById('proj-files').value = '';
-          loadMyProjects();
-          show(projectsList);
-        } catch (e) {
-          alert('建立失敗: ' + e.message);
-        }
-        btnCreateProject.disabled = false;
-      };
+          btnCreateProject.disabled = false;
+        };
     };
 }
 
